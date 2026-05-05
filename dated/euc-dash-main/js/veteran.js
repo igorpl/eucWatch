@@ -30,7 +30,7 @@ async function sendCommand(cmd) {
 
 async function scan() {
   device = await navigator.bluetooth.requestDevice(
-    { filters: [{ namePrefix: 'LK' }], optionalServices: [0xFFE0]})
+    { filters: [{ namePrefix: 'LK' }, { namePrefix: 'NF' }], optionalServices: [0xFFE0]})
   server = await device.gatt.connect()
   service = await server.getPrimaryService(0xFFE0)
   characteristic = await service.getCharacteristic(0xFFE1)

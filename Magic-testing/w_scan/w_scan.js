@@ -20,7 +20,7 @@ if (!global.scan) {
 			else if (euc.dash.info.get.makr == "InmotionV11") this.filter = [{ namePrefix: 'V11' }];
 			else if (euc.dash.info.get.makr == "InmotionV12") this.filter = [{ namePrefix: 'V12' }];
 			else if (euc.dash.info.get.makr == "Begode") this.filter = [{ namePrefix: 'GotWay' }];
-			else if (euc.dash.info.get.makr == "Veteran") this.filter = [{ namePrefix: 'LK' }];
+			else if (euc.dash.info.get.makr == "Veteran") this.filter = [{ namePrefix: 'LK' }, { namePrefix: 'NF' }];
 			//else if (euc.dash.info.get.makr == "Kingsong") this.filter = [{ namePrefix: 'KS' }];
   			else if (euc.dash.info.get.makr=="Kingsong")  this.filter =  [{}]; 
 			else this.filter = [{ services: [service] }];
