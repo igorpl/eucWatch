@@ -1,3 +1,4 @@
+1.83: settings lock, spaced multi byte commands, queued writes, led on connect fixed, frame 4 led and light mode widths
 1.82: PWM mode switch H/S in dash options, free spin speed editor, model table dropped
 1.81: Hardware PWM from frame 7 and from frame 0 on custom firmware, estimate as fallback
 1.80: rework

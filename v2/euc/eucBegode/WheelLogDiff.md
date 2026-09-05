@@ -22,7 +22,7 @@ Voltage scaling: eucWatch's linear `pack/16` is fine, and arguably better than
 WheelLog's table (WheelLog's index 3 is 117.6 V but uses scaler 1.738 = 116.8 V, and
 its `getCellsForWheel` returns 32 cells for that entry instead of 28).
 
-## 1. No `lock_Changes` — settings bounce back
+## 1. No `lock_Changes` — settings bounce back — FIXED
 
 Most likely cause of "the setting didn't stick".
 
@@ -49,7 +49,7 @@ Same pattern at:
 Cheapest fix matching WheelLog: a `euc.temp.lock` counter decremented in `pck4`/`pck0`,
 set to 2 by `euc.wri` on any setting command.
 
-## 2. Multi-byte commands sent back-to-back with no spacing
+## 2. Multi-byte commands sent back-to-back with no spacing — FIXED
 
 WheelLog deliberately spreads these over hundreds of ms, because the wheel sits behind
 a serial-to-BLE bridge with no flow control:
@@ -69,7 +69,7 @@ and LED are the same shape.
 WheelLog also sends a trailing `b` after the parameter bytes on `W...` commands;
 eucWatch never does.
 
-## 3. `euc.wri` silently drops the second command
+## 3. `euc.wri` silently drops the second command — FIXED
 
 ```js
 if (euc.tout.busy) { clearTimeout(euc.tout.busy); euc.tout.busy=setTimeout(...,150); return; }
@@ -79,7 +79,7 @@ Any command inside 100 ms of the previous one is dropped *and extends the lockou
 Combined with #2 this means a rapid double-tap on any settings button loses the second
 command with no feedback. It also breaks connect-time init — see #4.
 
-## 4. LED-on-connect is dead code
+## 4. LED-on-connect is dead code — FIXED
 
 `eucBegode.js:283` and `:304`:
 
@@ -117,23 +117,24 @@ thresholds in the very same function assume real amps
 Side note, different wheel: `eucVeteran.js:61` uses `/100` where WheelLog's Veteran
 adapter does `raw * 10` into an A x 100 unit, i.e. `/10`. Worth a look.
 
-## 6. Field-width mismatches in frame 4 / frame 0
+## 6. Field-width mismatches in frame 4 / frame 0 — LED and light FIXED, volume open
 
 | Field | WheelLog | eucWatch |
 | --- | --- | --- |
-| LED mode | `buff[13] & 0xFF` | `data.getUint16(12)` — `eucBegode.js:250` |
-| Light mode | `buff[15] & 0x03` | `data.getUint8(15)` — `:275`, unmasked |
-| Volume | not parsed (14-17 documented "unknown") | `data.getUint16(16)` — `:225` |
+| LED mode | `buff[13] & 0xFF` | was `data.getUint16(12)`, now `getUint8(13)` |
+| Light mode | `buff[15] & 0x03` | was `getUint8(15)` unmasked, now `& 0x03` |
+| Volume | not parsed (14-17 documented "unknown") | `data.getUint16(16)` — still as-is |
 
-The LED one reads byte 12 into the high half; it only agrees while byte 12 is zero. The
+The LED one read byte 12 into the high half; it only agreed while byte 12 was zero. The
 light one is what `dashBegode.js:40-41` indexes with (`val[HL]`, `HL==2`), so any stray
-high bit gives an undefined label and a broken strobe state.
+high bit gave an undefined label and a broken strobe state.
 
 The volume read is the one that cannot be verified against WheelLog at all — in the
 sample frame in WheelLog's protocol comment, bytes 16-17 are `FF F8`, not a 1-9 volume.
-**Needs checking on real hardware**: what is `dashBegodeOpt2` actually displaying?
+It is left alone on purpose. **Needs checking on real hardware**: what is
+`dashBegodeOpt2` actually displaying?
 
-## 7. `param / 10` is not integer division
+## 7. `param / 10` is not integer division — FIXED
 
 ```js
 case 'tiltbackSpeed': return [87, 89, param / 10 + 48, param % 10 + 48];  // :36
@@ -176,6 +177,9 @@ so hardware PWM mode silently reports 0.
   strobe for its PWM tiltback warning). `dashBegode.js:142` has no such check, so STROBE
   and PWM TILT will fight each other.
 
-## Suggested order
+## Status
 
-Start with #1 and #4 — the two that most look like "a setting I changed didn't stick".
+Done: #1, #2, #3, #4, #6 (LED and light widths) and #7 — module 1.83, dash 1.81.
+
+Left: #5 phase current scale, #6's volume read (needs a real wheel to confirm what
+bytes 16-17 carry), #8 single-shot firmware/model fetch, #9 feature gaps.

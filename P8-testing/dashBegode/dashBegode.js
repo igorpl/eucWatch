@@ -148,9 +148,13 @@ touchHandler[0]=function(e,x,y){
 					face.go("tpmsFace",0);
 					return;
 				}
-			}else if  (120<=x && 100<=y ) { //led
-				buzzer.nav([30,50,30]);	
-				face[0].set(euc.dash.opt.lght.led,"LED MODE");				
+			}else if  (120<=x && 100<=y ) { //led, tap steps to the next mode
+				//what a mode number means is per wheel, an rgb colour on one, the pwm
+				//screen instead of speed on an xway, so stepping through the numbers is
+				//the only led control that fits every wheel. hold opens the picker.
+				buzzer.nav([30,50,30]);
+				euc.dash.opt.lght.led=(9<=euc.dash.opt.lght.led)?0:(euc.dash.opt.lght.led|0)+1;
+				euc.wri("ledMode",euc.dash.opt.lght.led);
 			}else buzzer.nav(40);
 		}else {
 			if ( x <= 120 && 0<face[0].setEb  ) {
@@ -196,6 +200,7 @@ touchHandler[0]=function(e,x,y){
 			face.go(ew.is.dash[ew.def.dash.face],0);
 		return;
 	case 12:
+		if (face[0].setE) {buzzer.nav(40);return;}
 		if  (x<=120 && 100<=y ) { //tpms
 			buzzer.nav([30,50,30]);
 			if (euc.dash.opt.tpms) {
@@ -205,12 +210,16 @@ touchHandler[0]=function(e,x,y){
 				face[0].ntfy("TPMS DISABLED","NO ACTION",19,1,1);
 				return;
 			}else{
-				if (global.tpms){ 
+				if (global.tpms){
 					tpms.scan();
 					face.go("tpmsFace",0);
-				}else 
+				}else
 					face[0].ntfy("NO MODULE","NO ACTION",19,1,1);
 			}
+			return;
+		}else if ( 120<=x && 100<=y ) { //led, hold picks a mode number directly
+			buzzer.nav([30,50,30]);
+			face[0].set(euc.dash.opt.lght.led,"LED MODE");
 			return;
 		}else buzzer.nav(40);
 		break;
