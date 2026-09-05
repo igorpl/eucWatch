@@ -120,6 +120,10 @@ euc.temp.liveParse = function (inc){
   //cpu temperature, only in the long frames. EUC World reads it here, the Leaperkim app
   //does not read it at all, so leave tmpM undefined when the wheel does not send it.
   if ((sub===0||sub===4) && 62<blen) euc.dash.live.tmpM=lala.getInt16(61)/100;
+  //a third sensor, 22.9C on a wheel reading 30.2 at the board and 37.4 at the cpu. EUC
+  //World treats it as the main temperature on new firmware; which sensor it is is unknown,
+  //so it is carried without a name.
+  if ((sub===0||sub===4) && 60<blen) euc.dash.live.tmpA=lala.getInt16(59)/100;
   //battery temperature status, offset 36. 111 = every sensor normal, 100/101/110 = one or
   //more high, anything else the Leaperkim app shows as unknown.
   if (37<blen) euc.dash.live.batT=lala.getUint16(36);

@@ -19,6 +19,7 @@ face[0] = {
     this.spd=euc.dash.live.spd-1;
     this.amp=-1;
     this.tmp=-1;
+    this.time=-1;
     this.pwm=Math.round(euc.dash.live.pwm)-1;
     this.pwm1=-1;
     this.bat=-1;
@@ -34,7 +35,8 @@ face[0] = {
     if (euc.state=="READY") {
       if (this.pwm!=Math.round(euc.dash.live.pwm)) this.pwmf();
       if (this.spd!=Math.round(euc.dash.live.spd)) this.spdf();
-      if (this.tmp!=euc.dash.live.tmp.toFixed(1)) this.tmpf();
+      if (!ew.def.dash.clkS) { if (60 < getTime()-this.time) this.clkf(); }
+      else if (this.tmp!=this.fldV()) this.tmpf();
       if (ew.def.dash.batS){ if (this.bat!=euc.dash.live.bat) this.batf();}
       else if (this.volt!=euc.dash.live.volt.toFixed(1)) this.vltf();
       //if (this.pwm1!=euc.dash.live.pwm) this.pwmE();
@@ -109,13 +111,40 @@ face[0] = {
     this.g.fillRect(5+this.pwm*2.4,51,239,70); //amp
     this.g.flip();
   },
+  //the bottom left field cycles Time, board temperature, cpu temperature and the third
+  //unnamed sensor. Only Veteran sends the last two, and only on its long frames.
+  fldV: function(){
+    return (ew.def.dash.clkS==2)?euc.dash.live.tmpM:(ew.def.dash.clkS==3)?euc.dash.live.tmpA:euc.dash.live.tmp;
+  },
+  fldNx: function(){
+    let c=ew.def.dash.clkS||0;
+    //skip whichever the wheel does not report rather than parking on an empty field
+    for (let i=0;i<4;i++){
+      c=(c+1)%4;
+      if (c<2 || (c==2&&euc.dash.live.tmpM!==undefined) || (c==3&&euc.dash.live.tmpA!==undefined)) break;
+    }
+    ew.def.dash.clkS=c;
+  },
+  clkf: function(){
+    this.time=getTime();
+    this.g.setColor(0,1);
+    this.g.fillRect(0,200,119,239);
+    this.g.setColor(1,11);
+    this.g.setFontVector(32);
+    let d=(Date()).toString().split(' ');
+    let t=(d[4]).toString().split(':');
+    this.g.drawString((t[0]+":"+t[1]),3,203);
+    this.g.flip();
+  },
   tmpf: function(){
-    this.tmp=euc.dash.live.tmp.toFixed(1);
+    let v=this.fldV();
+    if (v===undefined) { this.fldNx(); return; }
+    this.tmp=v;
     this.g.setColor(0,this.tmpC[euc.dash.alrt.tmp.cc]);
     this.g.fillRect(0,200,119,239);
     this.g.setColor(1,15);
     this.g.setFontVector(35);
-    let temp=((ew.def.dash.farn)?this.tmp*1.8+32:this.tmp).toString().split(".");
+    let temp=((ew.def.dash.farn)?v*1.8+32:v).toFixed(1).toString().split(".");
     let size=5+this.g.stringWidth(temp[0]);
     this.g.drawString(temp[0], 5,203);
     if (temp[0]<100) {
@@ -213,12 +242,12 @@ face[1] = {
 touchHandler[0]=function(e,x,y){
   switch (e) {
     case 5: //tap event
-      /*if (x < 120 && 200 <y ){//temp/clock
+      if (x < 120 && 200 <y ){//time/board/cpu/third temperature
         if (ew.def.dash.clkS==undefined) ew.def.dash.clkS=0;
-        ew.def.dash.clkS=1-ew.def.dash.clkS;
+        face[0].fldNx();
         face[0].time=-1;face[0].tmp=-1;
         buzzer.nav([30,50,30]);
-      }else */if (120 < x && 200<y) {//batery percentage/voltage
+      }else if (120 < x && 200<y) {//batery percentage/voltage
         if (ew.def.dash.batS==undefined) ew.def.dash.batS=0;
         ew.def.dash.batS=1-ew.def.dash.batS;
         face[0].bat=-1;face[0].volt=-1;

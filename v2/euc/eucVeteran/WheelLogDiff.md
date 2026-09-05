@@ -67,7 +67,11 @@ timer in seconds), offset 32 hovers around `6` (0.06 deg) and goes negative, off
 Charging status is the one with an obvious home — the dash already has a charging concept
 for other makes.
 
-## 3. No model mapping, so the watch never knows which Veteran it is — OPEN
+## 3. No model mapping, so the watch never knows which Veteran it is — DEFERRED
+
+**Deferred on purpose, 2026-09-05.** Wanted, but not now. If it is picked up, the
+automatic `bat.pack` half should stay opt-in: silently overriding a pack size the rider
+set by hand would move their battery percentage without explanation.
 
 ```js
 if (!euc.dash.info.get.modl) euc.dash.info.get.modl=lala.getUint16(28);   // :78

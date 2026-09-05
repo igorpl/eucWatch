@@ -48,10 +48,10 @@ face[0] = {
 			this.g.flip();
 			if (this.spd != Math.round(euc.dash.live.spd)) this.spdf();
 			if (!ew.def.dash.clkS) {
-				if (this.tmp != euc.dash.live.tmp.toFixed(1)) this.tmpf();
+				if (60 < getTime() - this.time) this.clkf();
 			}
-			else if (60 < getTime() - this.time)
-				this.clkf();
+			else if (this.tmp != this.fldV())
+				this.tmpf();
 			if (ew.def.dash.batS) { if (this.bat != euc.dash.live.bat) this.batf(); }
 			else if (this.volt != euc.dash.live.volt.toFixed(1)) this.vltf();
 			else if (euc.dash.opt.tpms && tpms.euc[euc.dash.opt.tpms] && (this.tpms != tpms.euc[euc.dash.opt.tpms].alrm)) this.tpmsf();
@@ -93,13 +93,29 @@ face[0] = {
 		}, 300, this);
 		//this.afterScrOff=false;
 	},
+	//the top left field cycles Time, board temperature, cpu temperature and the third
+	//unnamed sensor. Only Veteran sends the last two, and only on its long frames.
+	fldV: function() {
+		return (ew.def.dash.clkS == 2) ? euc.dash.live.tmpM : (ew.def.dash.clkS == 3) ? euc.dash.live.tmpA : euc.dash.live.tmp;
+	},
+	fldNx: function() {
+		let c = ew.def.dash.clkS || 0;
+		//skip whichever the wheel does not report rather than parking on an empty field
+		for (let i = 0; i < 4; i++) {
+			c = (c + 1) % 4;
+			if (c < 2 || (c == 2 && euc.dash.live.tmpM !== undefined) || (c == 3 && euc.dash.live.tmpA !== undefined)) break;
+		}
+		ew.def.dash.clkS = c;
+	},
 	tmpf: function() {
-		this.tmp = euc.dash.live.tmp.toFixed(1);
+		let v = this.fldV();
+		if (v === undefined) { this.fldNx(); return; }
+		this.tmp = v;
 		this.g.setColor(0, this.tmpC[euc.dash.alrt.tmp.cc]);
 		this.g.fillRect(0, 0, 119, 50);
 		this.g.setColor(1, 15);
 		this.g.setFontVector(50);
-		let temp = ((ew.def.dash.farn) ? this.tmp * 1.8 + 32 : this.tmp).toString().split(".");
+		let temp = ((ew.def.dash.farn) ? v * 1.8 + 32 : v).toFixed(1).toString().split(".");
 		let size = 5 + this.g.stringWidth(temp[0]);
 		this.g.drawString(temp[0], 5, 3);
 		if (temp[0] < 100) {
@@ -228,9 +244,9 @@ face[1] = {
 touchHandler[0] = function(e, x, y) {
 	switch (e) {
 		case 5: //tap event
-			if (x < 120 && y < 60) { //temp/clock
+			if (x < 120 && y < 60) { //time/board/cpu/third temperature
 				if (ew.def.dash.clkS == undefined) ew.def.dash.clkS = 0;
-				ew.def.dash.clkS = 1 - ew.def.dash.clkS;
+				face[0].fldNx();
 				face[0].time = -1;
 				face[0].tmp = -1;
 				buzzer.nav([30, 50, 30]);
