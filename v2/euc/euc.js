@@ -1,6 +1,6 @@
 global.euc = {
 	is: { "run": 0, "chrg": 0, "night": 1, "day": [7, 19], "buzz": 0 , "horn": 0, "busy":0},
-	tout:{"horn":0, "loop":0, "alive":0, "reconnect":0, "busy":0 },
+	tout:{"horn":0, "loop":0, "alive":0, "reconnect":0, "busy":0, "fetch":0 },
 	ntid:{"horn":0},
 	state: "OFF",
 	proxy: 0,
@@ -24,6 +24,8 @@ global.euc = {
 			euc.tout.alive = 0; }
 		if (euc.tout.busy) { clearTimeout(euc.tout.busy);
 			euc.tout.busy = 0; }
+		if (euc.tout.fetch) { clearTimeout(euc.tout.fetch);
+			euc.tout.fetch = 0; }
 		if (euc.tout.intervalLive) { clearInterval(euc.tout.intervalLive);
 			euc.tout.intervalLive = 0; }
 		if (this.state != "OFF") {
@@ -99,6 +101,8 @@ global.euc = {
 			euc.tout.alive = 0; }
 		if (euc.tout.busy) { clearTimeout(euc.tout.busy);
 			euc.tout.busy = 0; }
+		if (euc.tout.fetch) { clearTimeout(euc.tout.fetch);
+			euc.tout.fetch = 0; }
 		if (euc.tout.intervalLive) { clearInterval(euc.tout.intervalLive);
 			euc.tout.intervalLive = 0; }
 		// Restart watchdog updater

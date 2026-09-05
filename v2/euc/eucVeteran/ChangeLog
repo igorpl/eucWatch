@@ -1,4 +1,5 @@
-2.1.4: beep on connect/disconnect repeats the current pedal mode, the Begode beep byte did nothing here
+2.12: phase current scale, tenths of an amp not hundredths
+2.11: beep on connect/disconnect repeats the current pedal mode, the Begode beep byte did nothing here
 2.10: add checksum
 2.00: new protocol support
 1.80: rework

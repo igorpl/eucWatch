@@ -58,8 +58,10 @@ euc.temp.liveParse = function (inc){
   euc.dash.trip.last=(lala.getUint16(10)<<16 | lala.getUint16(8))/1000;
   euc.dash.trip.totl=(lala.getUint16(14)<<16 | lala.getUint16(12))/1000;
   euc.log.trip.forEach(function(val,pos){ if (!val) euc.log.trip[pos]=euc.dash.trip.totl;});
-  //amp
-  euc.dash.live.amp=lala.getInt16(16)/100;
+  //amp, phase current. WheelLog scales this raw value by 10 into its A x 100 unit, so
+  //it is tenths of an amp, not hundredths. /100 read 10x low and left the thresholds
+  //below unreachable.
+  euc.dash.live.amp=lala.getInt16(16)/10;
   if (euc.dash.opt.unit.ampR) euc.dash.live.amp=-euc.dash.live.amp;
   euc.log.ampL.unshift(euc.dash.live.amp);
   if (20<euc.log.ampL.length) euc.log.ampL.pop();
