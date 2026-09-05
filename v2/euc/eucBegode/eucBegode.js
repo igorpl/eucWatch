@@ -13,7 +13,6 @@ euc.cmd=function(cmd, param) {
     case 'extendedPacket':  return [107];
     case 'fetchModel':      return [78];
     case 'fetchFirmware':   return [86];
-    case 'fetchGreet':      return [103];
     case 'beep':            return [98];
     case 'lightsOn':        return [81];
     case 'lightsOff':       return [69];
@@ -34,7 +33,6 @@ euc.cmd=function(cmd, param) {
     case 'startIAP':        return [33, 64];
     case 'tiltbackOff':     return [98, 34, 98, 98];
     case 'tiltbackSpeed':   return [98, 87, 89, Math.floor(param / 10) + 48, param % 10 + 48, 98, 98];
-    case 'pwmLimit':        return [87, 80, Math.floor(param / 10) + 48, param % 10 + 48, 98];
     case 'volume':          return [87, 66, 48 + param, 98];
     case 'ledMode':         return [87, 77, 48 + param, 98];
     default:                return [];

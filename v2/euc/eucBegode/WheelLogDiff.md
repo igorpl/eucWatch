@@ -169,12 +169,23 @@ so hardware PWM mode silently reports 0.
 - **Frame `0xFF`** (Alexovik advanced: extreme mode, braking current, PID factors,
   rotation control) — not decoded at all. This is where BF keeps its settings, so a BF
   wheel currently shows no wheel settings at all. Needs a screen as well as a decoder.
-- **Frame 1 BMS** — eucWatch reads only `pwmLimit` at offset 2 (and that value is never
+- **Frame 1 BMS** — eucWatch reads only a pwm limit at offset 2 (and that value is never
   used); no cells, no `autoVoltage`.
-- **`pwmLimit` command** is defined but never called from anywhere; WheelLog has no
-  equivalent either.
-- **Miles/km toggle** — commands exist, `euc.dash.opt.unit.mile` is decoded, but no
-  screen sets it.
+- **Dead commands** — REMOVED. `pwmLimit` was defined and never called, and WheelLog has
+  no equivalent. `fetchGreet` was also never called and was the same byte as
+  `speedKilometers` (`103`, `g`), so wiring it up later would have silently switched the
+  wheel to km.
+- **Miles/km toggle** — WON'T DO, nothing to fix. `euc.dash.opt.unit.mile` is bit 0 of
+  frame 4 and the `g`/`m` commands write it, but it is a *wheel* setting: WheelLog calls
+  it "Switch controller in Miles" and it changes what the wheel's own display and voice
+  announcements use. It does **not** change the units in the BLE frames — WheelLog
+  decodes speed as `signedShort(4) * 3.6` and distance in metres either way, and its
+  `gwInMiles` is never read back into any conversion. What the watch shows is already
+  driven entirely by `ew.def.dash.mph` in Dash Options, which is correct as it stands.
+  Converting from `unit.mile` would be wrong: there is nothing to convert. The decode
+  stays as a mirror of wheel state; the `g`/`m` commands stay in case someone later
+  wants to change the wheel's own display from the watch, which is the only thing such a
+  button would buy.
 - **Strobe guard** — FIXED. `dashBegode.js` now refuses to turn strobe on while alarm
   mode is `I`, because Freestyl3r drives strobe itself as its PWM tiltback warning.
   Turning strobe back off is always allowed.
@@ -182,16 +193,22 @@ so hardware PWM mode silently reports 0.
 ## Status
 
 Done: #1, #2, #3, #4, #5, #6 (LED and light widths), #7, #8, and in #9 the Alexovik
-frames and the strobe guard — eucBegode 1.84, euc 1.81, eucVeteran 2.11, dash 1.82.
+frames, the strobe guard and the dead command removal — eucBegode 1.85, euc 1.81,
+eucVeteran 2.11, dash 1.82.
 
-Left, all of it needing either a real wheel or new UI:
+Closed without a change: #9 miles/km, see that bullet.
+
+Left, both needing either a real wheel or new UI:
 
 - #6's volume read. Bytes 16-17 of frame 0 are `FF F8` in WheelLog's own sample, not a
   1-9 volume, and WheelLog does not parse them at all. **Needs checking on real
   hardware**: what is `dashBegodeOpt2` actually displaying?
 - #9 frame `0xFF` — the Alexovik settings frame. Decoding it is straightforward; it also
-  needs a screen, because none of the existing ones map onto those fields.
+  needs a screen, because none of the existing ones map onto those fields. Until then a
+  BF wheel shows no wheel settings at all.
 - #9 frame 1 BMS — cells and `autoVoltage`.
-- #9 miles/km toggle — the commands and the decode are both there, only a screen is
-  missing.
-- #9 `pwmLimit` — defined, unused, and WheelLog has no equivalent. Probably delete it.
+
+Noted while auditing, not acted on: the watch converts km to miles with `0.625` rather
+than `0.6214`, about 0.6% high (50 km/h shows 31.25 instead of 31.07 mph). It is used
+consistently across every dash and alert screen, so changing it is a judgement call
+rather than a bug fix.

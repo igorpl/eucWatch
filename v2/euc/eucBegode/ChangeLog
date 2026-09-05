@@ -1,3 +1,4 @@
+1.85: drop the unused pwmLimit and fetchGreet commands
 1.84: phase current scale, Alexovik (BF) firmware frames, firmware/model fetch retries, banner matched on the whole chunk
 1.83: settings lock, spaced multi byte commands, queued writes, led on connect fixed, frame 4 led and light mode widths
 1.82: PWM mode switch H/S in dash options, free spin speed editor, model table dropped
