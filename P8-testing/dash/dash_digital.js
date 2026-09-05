@@ -17,6 +17,7 @@ face[0] = {
 		this.batC=[4,1,13,13];
 		this.spd=euc.dash.live.spd-1;
 		this.aTlt=-1;
+		this.aAlr=-1;
 		this.topS=-1;
 		this.topP=-1;
 		this.amp=-10;
@@ -65,8 +66,8 @@ face[0] = {
 			//spdMspeed block
 			if (this.topS!=euc.dash.trip.topS.toFixed(1)) this.spMF();
 			//buzzer/health block
-			if (euc.dash.info.get.makr=="Kingsong"||euc.dash.info.get.makr=="Begode") {
-				if (this.aTlt!=euc.dash.alrt.spd.max) this.limF();
+			if (euc.dash.info.get.makr=="Kingsong"||euc.dash.info.get.makr=="Begode"||euc.dash.info.get.makr=="Veteran") {
+				if (this.aTlt!=euc.dash.alrt.spd.max||this.aAlr!=euc.dash.alrt.spd.alrm) this.limF();
 			}else if (this.alrm!=euc.dash.alrt.pwr) this.alrF();
 			//tmp/amp field
 			if (ew.def.dash.amp){
@@ -103,7 +104,7 @@ face[0] = {
 				//this.spd=-1;
 				this.spd=euc.dash.live.spd-1;
 				this.pwm=-1;this.amp=-1;this.tmp=-1;this.tmpM=-1;this.batT=-1;this.bat=-1;this.trpL=-1;this.conn=0;this.lock=2;
-				this.buzz=-1;this.volt=-1;this.alrm=-1;this.aTlt=-1;this.topS=-1;this.bar=0;
+				this.buzz=-1;this.volt=-1;this.alrm=-1;this.aTlt=-1;this.aAlr=-1;this.topS=-1;this.bar=0;
 				//this.ampL.fill(1,0,1);this.batL.fill(1,0,1);
 				this.run=true;
 			}
@@ -235,14 +236,21 @@ face[0] = {
 	},
 	limF: function(){
 		this.aTlt=euc.dash.alrt.spd.max;
-		let aTlTdisp=Math.round(this.aTlt*this.fact);
+		this.aAlr=euc.dash.alrt.spd.alrm;
+		let lbl="LIMIT", val=this.aTlt;
+		//Veteran reports a speed limit and a lower speed alarm. A limit of 200 is the
+		//wheel's "off" position, so fall back to the alarm, which is the number worth
+		//watching; if that is three digits too there is nothing useful to show.
+		if (euc.dash.info.get.makr=="Veteran" && 100<=Math.round(val*this.fact)) {lbl="ALERT";val=this.aAlr;}
+		let aTlTdisp=Math.round(val*this.fact);
 		//if (euc.dash.info.get.makr=="Begode") this.g.setColor(0,(euc.dash.alrt.spd.tilt.val<=this.aTlt)?1:13);
 		//else
-		this.g.setColor(0,(euc.dash.live.spd+5<=this.aTlt)?1:13);
+		this.g.setColor(0,(euc.dash.live.spd+5<=val)?1:13);
 		this.g.fillRect(200,115,239,173);
 		this.g.setColor(1,15);
+		if (euc.dash.info.get.makr=="Veteran" && 100<=aTlTdisp) {this.g.flip();return;}
 		this.g.setFontVector(10);
-		this.g.drawString("LIMIT", 207,120);
+		this.g.drawString(lbl, 207,120);
 		this.g.setFontVector((aTlTdisp<100)?29:20);
 		this.g.drawString(aTlTdisp, 221-(this.g.stringWidth(aTlTdisp)/2),(aTlTdisp<100)?140:145);
 		this.g.flip();

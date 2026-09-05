@@ -166,7 +166,7 @@
 	{ "id": "Dashboard Digital",
 		"name": "EUC digital Dashboard",
 		"icon": "../dash/icon.png",
-		"version":"1.92.4",
+		"version":"1.92.5",
 		"description": "EUC simple digital",
 		"tags": "euc",
 		"readme": "README.md",
@@ -294,12 +294,13 @@
 	{ "id": "dashVeteran",
 		"name": "Veteran Settings",
 		"icon": "icon.png",
-		"version":"1.92.2",
+		"version":"1.92.3",
 		"description": "EUC dashboard, Veteran settings gui files.",
 		"tags": "euc",
 		"storage": [
 			{"name":"dashVeteran","url":"dashVeteran.js"},
-			{"name":"dashVeteranOptions","url":"dashVeteranOptions.js"}
+			{"name":"dashVeteranOptions","url":"dashVeteranOptions.js"},
+			{"name":"dashVeteranLimits","url":"dashVeteranLimits.js"}
 
 		]
 	}, 

@@ -127,11 +127,10 @@ touchHandler[0]=function(e,x,y){
 				face[0].btn(euc.dash.auto.onC.beep,"BEEP",28,60,35,4,1,0,0,119,97);
 				face[0].ntfy("BEEP ON CON/DIS","NO BEEP",22,(euc.dash.auto.onC.beep)?4:1,euc.dash.auto.onC.beep);
 				buzzer.nav([30,50,30]);
-			}else if ( 120<=x && y<=100 ) { //
-				buzzer.nav(40);	
-				face[0].ntfy("NOT YET","",19,13,1);
-				//face.go("dashVeteranLimits",0);
-				//return;	
+			}else if ( 120<=x && y<=100 ) { //wheel alerts
+				buzzer.nav([30,50,30]);
+				face.go("dashVeteranLimits",0);
+				return;
 			}else if ( x<=120 && 100<=y ) { 
 	            face[0].ntfy("HOLD -> CLEAR METER","",19,1,1);
 				buzzer.nav([30,50,30]);	

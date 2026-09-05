@@ -1,6 +1,20 @@
 //Vteran euc module
 E.setFlags({ pretokenise: 1 });
-euc.cmd=function(no){
+//Leaperkim settings frame: "L?Ap", total length, payload, CRC32 big endian over the rest.
+//The payload is an image of the wheel's settings block and 0x80 means "leave unchanged",
+//so only the slot being written carries a value. Same CRC as the inbound DC 5A 5C frames.
+euc.temp.lkSet=function(cmd,blk,slot,val){
+	let pay=new Uint8Array(8);
+	pay.fill(0x80);
+	pay[0]=1; pay[1]=blk; pay[slot]=val;
+	let f=new Uint8Array(17);
+	f.set([0x4c,cmd,0x41,0x70,17]);
+	f.set(pay,5);
+	let crc=E.CRC32(new Uint8Array(f.buffer,0,13));
+	f[13]=(crc>>>24)&255; f[14]=(crc>>>16)&255; f[15]=(crc>>>8)&255; f[16]=crc&255;
+	return f;
+};
+euc.cmd=function(no,v){
 	switch (no) {
 		//Veteran has no beep command, re-sending the current pedal mode makes the wheel beep
 		case "beep":return ["SETs","SETm","SETh"][euc.dash.opt.ride.mode-1]||"SETm";
@@ -12,6 +26,13 @@ euc.cmd=function(no){
 		case "setVolUp":return "SetFctVol+";
 		case "setVolDn":return "SetFctVol-";
 		case "clearMeter":return "CLEARMETER";
+		//speed alarm, slot 7 of the 0x6b block. The Leaperkim app sends both generations
+		//back to back rather than working out which one the wheel wants, so alrtSpd2 is
+		//the same value in the 0x64 block and euc.wri sends the pair.
+		case "alrtSpd": return euc.temp.lkSet(0x6b,0x80,7,v);
+		case "alrtSpd2":return euc.temp.lkSet(0x64,0,7,v);
+		//speed limit, slot 7 of the 0x64 block, a different setting from the alarm
+		case "limtSpd": return euc.temp.lkSet(0x64,2,7,v);
 		case "switchPackets": euc.temp.CHANGESTRORPACK=1; return "CHANGESTRORPACK";
 		case "changePage": euc.temp.CHANGESTRORPACK++; return "CHANGESHOWPAGE";
 		case "returnMain": euc.temp.CHANGESTRORPACK=0;return "CHANGESTRORPACK";
@@ -95,7 +116,11 @@ euc.temp.liveParse = function (inc){
   //battery temperature status, offset 36. 111 = every sensor normal, 100/101/110 = one or
   //more high, anything else the Leaperkim app shows as unknown.
   if (37<blen) euc.dash.live.batT=lala.getUint16(36);
-  euc.dash.trip.avrS=(lala.getUint16(24) / 10);
+  //offset 24 is the wheel's speed alarm and 26 its speed limit, both tenths of a km/h.
+  //This was stored as trip.avrS, which it is not: it never varies with speed. A limit of
+  //200 is the wheel's "off" position; the Leaperkim app can only set 10..120.
+  euc.dash.alrt.spd.alrm=lala.getUint16(24)/10;
+  euc.dash.alrt.spd.max=lala.getUint16(26)/10;
   if (!euc.dash.info.get.modl) euc.dash.info.get.modl=lala.getUint16(28);
   //ride mode is byte 31 alone. Byte 30 belongs to the version code, which the Leaperkim
   //app builds from bytes 30, 28, 29.
@@ -245,8 +270,19 @@ euc.conn=function(mac){
 				}).then(function() {
 					euc.gatt.disconnect();
 				}).catch(euc.off);
-            }else if (euc.cmd(n)) {
-				c.writeValue(euc.cmd(n)).then(function() {
+			}else if (n=="alrtSpd") {
+				//both generations, spaced the way the Leaperkim app spaces them
+				c.writeValue(euc.cmd("alrtSpd",v)).then(function() {
+					return new Promise(function(r){setTimeout(r,60);});
+				}).then(function() {
+					return c.writeValue(euc.cmd("alrtSpd2",v));
+				}).then(function() {
+					if (euc.tout.busy) {clearTimeout(euc.tout.busy);euc.tout.busy=0;}
+				}).catch(euc.off);
+            }else {
+				let cmd=euc.cmd(n,v);
+				if (!cmd.length) return;
+				c.writeValue(cmd).then(function() {
 					if (euc.tout.busy) {clearTimeout(euc.tout.busy);euc.tout.busy=0;}
 				}).catch(euc.off);
 			}
