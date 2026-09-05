@@ -1,4 +1,4 @@
-1.92.4: wheel alerts screen, same 5 km/h ladder for alert and limit, 200 shown as a value
+1.92.5: wheel alerts screen, alert 10-100 and limit 10-100 plus the wheel 200 rung
 1.92.2: BEEP switch sets the beep on connect/disconnect flags instead of the lock flag
 1.80: rework
 0.50: New settings support

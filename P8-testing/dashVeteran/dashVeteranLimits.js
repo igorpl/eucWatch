@@ -41,14 +41,14 @@ face[0] = {
 		  t.show();
 		},200,this);
 	},
-	//the wheel's own menu steps in 5 km/h, so match it rather than the app's 1 km/h, and
-	//end on the same 200 rung the wheel offers for both settings. The Leaperkim app caps
-	//the limit at 120, but the wheel's own menu goes to 200 and reports it back, so it is
-	//offered here too.
-	lad: function(){
+	//the wheel's own menu steps in 5 km/h, so match it rather than the app's 1 km/h.
+	//The limit gets the wheel's extra 200 rung, which is what it reports when there is no
+	//limit; the alarm does not, because 200 was tried on a wheel and had no effect. The
+	//Leaperkim app caps the limit at 120 but the wheel's own menu goes to 200.
+	lad: function(a){
 		let l=[];
 		for (let s=10;s<=100;s+=5) l.push(s);
-		l.push(200);
+		if (!a) l.push(200);
 		return l;
 	},
 	disp: function(v){
@@ -86,7 +86,7 @@ face[0] = {
 	},
 	set: function(a,v,txt){
 		this.setE=a?1:2;
-		this.setL=this.lad();
+		this.setL=this.lad(a);
 		//snap onto the nearest rung of the ladder, the wheel may hold a value between them
 		this.setI=0;
 		for (let i=0;i<this.setL.length;i++) if (Math.abs(this.setL[i]-v)<Math.abs(this.setL[this.setI]-v)) this.setI=i;
