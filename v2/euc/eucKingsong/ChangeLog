@@ -1,3 +1,4 @@
+1.81: wheel handshake on every connection, settings work again after a reconnect
 1.80: rework
 1.07: DarknessBot/EUC Dash proxy support
 1.06: packets drop bug fix

@@ -533,7 +533,11 @@ euc.conn = function(mac) {
 				}
 				else if (euc.state == "OFF" || n == "end") {
 					if (euc.gatt && euc.gatt.connected) {
-						c.writeValue(euc.cmd((euc.dash.auto.onD.lock) ? "doLock" : "na")).then(function() {
+						//An empty packet went out when onD.lock was off, and a rejected write there
+						//takes the rest of the chain, disconnect included, into the catch.
+						Promise.resolve().then(function() {
+							if (euc.dash.auto.onD.lock) return c.writeValue(euc.cmd("doLock"));
+						}).then(function() {
 							if (euc.dash.auto.onD.off) return c.writeValue(euc.cmd("doPowerOff"));
 						}).then(function() {
 							if (euc.dash.auto.onD.HL) return c.writeValue(euc.cmd("setLights", euc.dash.auto.onD.HL));
@@ -565,19 +569,13 @@ euc.conn = function(mac) {
 				euc.updateDash(require("Storage").readJSON("dash.json", 1).slot);
 				ew.do.fileWrite("dash", "slot" + ew.do.fileRead("dash", "slot") + "Mac", euc.mac);
 			}
-			if (global["\xFF"].bleHdl && global["\xFF"].bleHdl[54] && global["\xFF"].bleHdl[54].value.buffer[0] == 170 && global["\xFF"].bleHdl[54].value.buffer[1] == 85) {
-				setTimeout(() => {
-					if (euc.dbg) print("EUC module Kingsong is ready");
-					euc.state = "READY";
-					c.startNotifications().then(function() {
-						return euc.dash.auto.onC.talk ? euc.wri("setVoiceOnOff", 2 - euc.dash.auto.onC.talk) : "ok";
-					});
-				}, 500);
-			}
-			else {
-				buzzer.nav([90, 40, 150]);
-				euc.wri("start");
-			}
+			//The wheel keeps no session across a BLE link: it streams telemetry to
+			//whoever subscribes, but it only answers commands after the handshake in
+			//"start". bleHdl outlives a disconnect, so keying on it skipped that
+			//handshake on every reconnect and left Light, Horn, Led and the rest dead
+			//until the wheel itself was restarted.
+			buzzer.nav([90, 40, 150]);
+			euc.wri("start");
 			//reconect
 		}).catch(euc.off);
 };
