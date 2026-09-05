@@ -2,7 +2,8 @@
 E.setFlags({ pretokenise: 1 });
 euc.cmd=function(no){
 	switch (no) {
-		case "beep":return [98];
+		//Veteran has no beep command, re-sending the current pedal mode makes the wheel beep
+		case "beep":return ["SETs","SETm","SETh"][euc.dash.opt.ride.mode-1]||"SETm";
 		case "rideSoft":return "SETs";
 		case "rideMed":return  "SETm";
 		case "rideStrong":return "SETh";
@@ -199,15 +200,23 @@ euc.conn=function(mac){
 				}).then(function() {
 					if (euc.dash.auto.onC.clrM) return c.writeValue(euc.cmd("clearMeter"));
 				}).then(function()  {
-					if (euc.dash.auto.onC.beep) return c.writeValue(euc.cmd("beep"));
 					//if (euc.dash.auto.onC.rstT) {}
 					euc.is.run=1;
+					//beep repeats the current pedal mode, wait for the first packets to report it
+					//and stay clear of the 200ms write debounce in euc.wri
+					if (euc.dash.auto.onC.beep) setTimeout(() => {euc.wri("beep");},600);
 					return true;
 				});
 			}else if (euc.state=="OFF"||n=="end") {
 				let hld=["none","setLightOn","setLightOff"];
-				c.writeValue(euc.cmd(hld[euc.dash.auto.onD.HL])).then(function() {
-					if (euc.dash.auto.onD.beep) return c.writeValue(euc.cmd("beep"));
+				Promise.resolve().then(function() {
+					if (euc.dash.auto.onD.HL) return c.writeValue(euc.cmd(hld[euc.dash.auto.onD.HL]));
+				}).then(function() {
+					if (!euc.dash.auto.onD.beep) return;
+					//give the wheel time to beep before the link is dropped
+					return c.writeValue(euc.cmd("beep")).then(function() {
+						return new Promise(function(r){setTimeout(r,150);});
+					});
 				}).then(function() {
 					euc.is.run=0;
 					return c.stopNotifications();

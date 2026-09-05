@@ -5,6 +5,8 @@ face[0] = {
 	init: function(){
 		if (euc.state!=="READY") {face.go(ew.is.dash[ew.def.dash.face],0);return;}
  		//if (!this.set&&(face.appPrev.startsWith("dash_")||face.appPrev==="settings")) this.g.clear();
+        if (euc.dash.auto.onC.beep==undefined) euc.dash.auto.onC.beep=0;
+        if (euc.dash.auto.onD.beep==undefined) euc.dash.auto.onD.beep=0;
         this.set=0;
 		this.g.setColor(0,0);
 		this.g.fillRect(0,98,239,99);
@@ -26,7 +28,7 @@ face[0] = {
       	this.g.fillRect(121,200,165,204);
 		this.g.flip();
 		//
-        this.btn(euc.dash.opt.lock.en,"BEEP",28,60,35,4,1,0,0,119,97);
+        this.btn(euc.dash.auto.onC.beep,"BEEP",28,60,35,4,1,0,0,119,97);
 		this.btn(1,"WHEEL",18,185,20,4,1,122,0,239,97,"ALERTS",22,185,55);		
         this.btn(1,"CLEAR",25,60,115,1,1,0,100,119,195,"METER",22,60,155);
         this.btn(euc.dash.opt.horn.en,"HORN",25,185,136,4,1,122,100,239,195);
@@ -120,9 +122,10 @@ touchHandler[0]=function(e,x,y){
 		}
 		else {
 			if ( x<=120 && y<100 ) { 
-				euc.dash.opt.lock.en= 1- euc.dash.opt.lock.en;
-				face[0].btn(euc.dash.opt.lock.en,"BEEP",28,60,35,4,1,0,0,119,97);
-				face[0].ntfy("BEEP ON CON/DIS","NO BEEP",22,(euc.dash.opt.lock.en)?4:1,euc.dash.opt.lock.en);
+				euc.dash.auto.onC.beep= 1- euc.dash.auto.onC.beep;
+				euc.dash.auto.onD.beep= euc.dash.auto.onC.beep;
+				face[0].btn(euc.dash.auto.onC.beep,"BEEP",28,60,35,4,1,0,0,119,97);
+				face[0].ntfy("BEEP ON CON/DIS","NO BEEP",22,(euc.dash.auto.onC.beep)?4:1,euc.dash.auto.onC.beep);
 				buzzer.nav([30,50,30]);
 			}else if ( 120<=x && y<=100 ) { //
 				buzzer.nav(40);	
