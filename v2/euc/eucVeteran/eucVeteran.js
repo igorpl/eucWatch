@@ -40,6 +40,11 @@ euc.isProxy=0;
 euc.temp.liveParse = function (inc){
   let lala = new DataView(inc);
   euc.is.alert=0;
+  //body length, byte 3. Anything past it is the CRC, so an offset is only readable
+  //while blen is greater than it. The long frames carry a sub packet selected by byte 46.
+  let blen=lala.getUint8(3);
+  let sub=(46<blen)?lala.getUint8(46):-1;
+  let chrg=lala.getUint8(23);
   //print(this.ev);
   //volt-bat
   euc.dash.live.volt=lala.getUint16(4)/100;
@@ -58,10 +63,20 @@ euc.temp.liveParse = function (inc){
   euc.dash.trip.last=(lala.getUint16(10)<<16 | lala.getUint16(8))/1000;
   euc.dash.trip.totl=(lala.getUint16(14)<<16 | lala.getUint16(12))/1000;
   euc.log.trip.forEach(function(val,pos){ if (!val) euc.log.trip[pos]=euc.dash.trip.totl;});
-  //amp, phase current. WheelLog scales this raw value by 10 into its A x 100 unit, so
-  //it is tenths of an amp, not hundredths. /100 read 10x low and left the thresholds
-  //below unreachable.
-  euc.dash.live.amp=lala.getInt16(16)/10;
+  //pwm, needed before the current because the bus current is derived from it
+  let pwmRaw=lala.getUint16(34);
+  euc.dash.live.pwm=Math.round(pwmRaw/100);
+  if (euc.dash.trip.pwm < euc.dash.live.pwm) euc.dash.trip.pwm = euc.dash.live.pwm;
+  //amp. Offset 16 is the *phase* current in tenths of an amp; the current the phone apps
+  //show is the bus current, which is the phase current times the duty cycle. The Leaperkim
+  //app does exactly this: abs(phase)/10 * pwmRaw/10000. Showing the raw phase value made
+  //the field swing +/-15A at walking pace while the real bus current sat near zero.
+  //The sign is kept so braking still reads negative; both phone apps drop it, but their
+  //sign convention differs by firmware version and unit.ampR already flips it here.
+  euc.dash.live.phas=lala.getInt16(16)/10;
+  euc.dash.live.amp=euc.dash.live.phas*pwmRaw/10000;
+  //on the charger the wheel reports the charging current instead, negative, offset 63
+  if (chrg && (sub===0||sub===4) && 64<blen && lala.getInt16(63)<0) euc.dash.live.amp=lala.getInt16(63)/10;
   if (euc.dash.opt.unit.ampR) euc.dash.live.amp=-euc.dash.live.amp;
   euc.log.ampL.unshift(euc.dash.live.amp);
   if (20<euc.log.ampL.length) euc.log.ampL.pop();
@@ -70,16 +85,21 @@ euc.temp.liveParse = function (inc){
     if (euc.dash.alrt.amp.hapt.hi<=euc.dash.live.amp)	euc.is.alert =  euc.is.alert + 1 + Math.round( (euc.dash.live.amp - euc.dash.alrt.amp.hapt.hi) / euc.dash.alrt.amp.hapt.step);
     else euc.is.alert =  euc.is.alert + 1 + Math.round(-(euc.dash.live.amp - euc.dash.alrt.amp.hapt.low) / euc.dash.alrt.amp.hapt.step);
   }
-  //tmp
+  //tmp, control board temperature
   euc.dash.live.tmp=lala.getInt16(18)/100;
   euc.dash.alrt.tmp.cc=(euc.dash.alrt.tmp.hapt.hi - 5 <= euc.dash.live.tmp )? (euc.dash.alrt.tmp.hapt.hi <= euc.dash.live.tmp )?2:1:0;
   if (euc.dash.alrt.tmp.hapt.en && euc.dash.alrt.tmp.cc==2) euc.is.alert++;
+  //cpu temperature, only in the long frames. EUC World reads it here, the Leaperkim app
+  //does not read it at all, so leave tmpM undefined when the wheel does not send it.
+  if ((sub===0||sub===4) && 62<blen) euc.dash.live.tmpM=lala.getInt16(61)/100;
+  //battery temperature status, offset 36. 111 = every sensor normal, 100/101/110 = one or
+  //more high, anything else the Leaperkim app shows as unknown.
+  if (37<blen) euc.dash.live.batT=lala.getUint16(36);
   euc.dash.trip.avrS=(lala.getUint16(24) / 10);
   if (!euc.dash.info.get.modl) euc.dash.info.get.modl=lala.getUint16(28);
-  euc.dash.opt.ride.mode=lala.getUint16(30);
-  //pwm
-  euc.dash.live.pwm=Math.round(lala.getUint16(34)/100);
-  if (euc.dash.trip.pwm < euc.dash.live.pwm) euc.dash.trip.pwm = euc.dash.live.pwm;
+  //ride mode is byte 31 alone. Byte 30 belongs to the version code, which the Leaperkim
+  //app builds from bytes 30, 28, 29.
+  euc.dash.opt.ride.mode=lala.getUint8(31);
   //alerts
   if (euc.dash.alrt.pwm.hapt.en && (euc.dash.alrt.pwr || euc.dash.alrt.pwm.hapt.hi <= euc.dash.live.pwm)) {
     buzzer.sys( 60);

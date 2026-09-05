@@ -21,6 +21,8 @@ face[0] = {
 		this.topP=-1;
 		this.amp=-10;
 		this.tmp=-1;
+		this.tmpM=-1;
+		this.batT=-1;
 		this.pwm=-1;
 		this.bat=-1;
 		this.volt=-1;
@@ -59,7 +61,7 @@ face[0] = {
 			}else
 				if (this.tmp!=Math.round(euc.dash.live.tmp)) this.tmpF();
 			//alarm block
-			if (this.buzz!=euc.is.buzz) this.buzF();
+			if (this.buzz!=euc.is.buzz||this.batT!=euc.dash.live.batT) this.buzF();
 			//spdMspeed block
 			if (this.topS!=euc.dash.trip.topS.toFixed(1)) this.spMF();
 			//buzzer/health block
@@ -70,7 +72,7 @@ face[0] = {
 			if (ew.def.dash.amp){
 				//if (this.ampL!=euc.log.ampL)
 				this.amLF();
-			}else if (this.tmp!=euc.dash.live.tmp.toFixed(1)) this.tmFF();
+			}else if (this.tmp!=euc.dash.live.tmp.toFixed(1)||this.tmpM!=euc.dash.live.tmpM) this.tmFF();
 			//batery field
 			if (!ew.def.dash.bat){
 				if (this.volt!=euc.dash.live.volt.toFixed(2)) this.vltF();
@@ -100,7 +102,7 @@ face[0] = {
 				this.g.flip();
 				//this.spd=-1;
 				this.spd=euc.dash.live.spd-1;
-				this.pwm=-1;this.amp=-1;this.tmp=-1;this.bat=-1;this.trpL=-1;this.conn=0;this.lock=2;
+				this.pwm=-1;this.amp=-1;this.tmp=-1;this.tmpM=-1;this.batT=-1;this.bat=-1;this.trpL=-1;this.conn=0;this.lock=2;
 				this.buzz=-1;this.volt=-1;this.alrm=-1;this.aTlt=-1;this.topS=-1;this.bar=0;
 				//this.ampL.fill(1,0,1);this.batL.fill(1,0,1);
 				this.run=true;
@@ -191,7 +193,18 @@ face[0] = {
 	},
 	buzF: function(){
 		this.buzz=euc.is.buzz;
-		if (!this.buzz&&euc.dash.info.get.makr=="Begode"&&euc.dash.alrt.mode==3){
+		this.batT=euc.dash.live.batT;
+		//Veteran battery temperature status: 111 is every sensor normal, 100/101/110 mean
+		//one or more is high. Anything else the wheel has not reported yet.
+		if (!this.buzz&&euc.dash.info.get.makr=="Veteran"&&(this.batT==100||this.batT==101||this.batT==110)){
+			this.g.setColor(0,13);
+			this.g.fillRect(0,115,40,173);
+			this.g.setColor(1,15);
+			this.g.setFontVector(14);
+			this.g.drawString("BAT", 7,130);
+			this.g.drawString("TEMP", 3,145);
+			this.g.flip();
+		}else if (!this.buzz&&euc.dash.info.get.makr=="Begode"&&euc.dash.alrt.mode==3){
 			this.g.setColor(0,4);
 			this.g.fillRect(0,115,40,173);
 			this.g.setColor(1,11);
@@ -245,13 +258,16 @@ face[0] = {
 	},
 	tmFF: function(){
 		this.tmp=euc.dash.live.tmp.toFixed(1);
+		this.tmpM=euc.dash.live.tmpM;
 		this.g.setColor(0,this.tmpC[euc.dash.alrt.tmp.cc]);
 		this.g.fillRect(0,0,119,50);
 		this.g.setColor(1,15);
-		if (euc.dash.info.get.makr=="Kingsong" || euc.dash.info.get.makr=="InmotionV10"){
+		if (euc.dash.info.get.makr=="Kingsong" || euc.dash.info.get.makr=="InmotionV10" || euc.dash.info.get.makr=="Veteran"){
 			this.g.setFontVector(35);
 			let temp= Math.round(((ew.def.dash.farn)?euc.dash.live.tmp* 1.8+32:this.tmp));
-			let tempM=Math.round(((ew.def.dash.farn)?euc.dash.live.tmpM*1.8+32:euc.dash.live.tmpM));
+			//Veteran only sends the cpu temperature on the long frames, roughly a quarter of
+			//them, so show a placeholder rather than nothing until the first one lands
+			let tempM=(euc.dash.live.tmpM===undefined)?"--":Math.round(((ew.def.dash.farn)?euc.dash.live.tmpM*1.8+32:euc.dash.live.tmpM));
 			let size=3+this.g.stringWidth(temp);
 			this.g.drawString(temp, 5,3);
 			this.g.setFontVector(16);
@@ -261,6 +277,7 @@ face[0] = {
 			this.g.setFontVector(8);
 			if (euc.dash.info.get.makr=="Kingsong")	   this.g.drawString("MOSFET            MOTOR", 7,40);
 			if (euc.dash.info.get.makr=="InmotionV10") this.g.drawString("MOSFET          BATTERY", 7,40);
+			if (euc.dash.info.get.makr=="Veteran")     this.g.drawString("BOARD                 CPU", 7,40);
 		}else{
 			this.g.setFontVector(50);
 			let temp=((ew.def.dash.farn)?this.tmp*1.8+32:this.tmp).toString().split(".");
