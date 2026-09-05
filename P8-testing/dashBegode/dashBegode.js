@@ -138,7 +138,14 @@ touchHandler[0]=function(e,x,y){
 				else {euc.dash.opt.lght.HL=1;euc.wri("lightsOn");} 
 				return;
 			}else if ( 120<=x && y<=100 ) { //STROBE
-				buzzer.nav([30,50,30]);	
+				buzzer.nav([30,50,30]);
+				//Freestyl3r firmware drives strobe itself as its pwm tiltback warning, so
+				//the two fight each other. WheelLog blocks strobe while alarm mode is I,
+				//same here. Turning it back off is always allowed.
+				if (euc.dash.alrt.mode==3 && euc.dash.opt.lght.HL!=2) {
+					face[0].ntfy("PWM TILT USES IT","NO ACTION",19,13,1);
+					return;
+				}
 				if (euc.dash.opt.lght.HL==2) {euc.dash.opt.lght.HL=0;euc.wri("lightsOff");} else {euc.dash.opt.lght.HL=2;euc.wri("lightsStrobe");}
 			}else if ( x<=120 && 100<=y ) { //tpms
 				buzzer.nav([30,50,30]);		

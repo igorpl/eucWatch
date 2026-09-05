@@ -1,3 +1,4 @@
+1.82: strobe blocked while PWM tiltback owns it on Freestyl3r firmware
 1.81: LED mode: tap steps to the next mode, hold opens the picker
 1.80: rework
 1.51: Bug fix

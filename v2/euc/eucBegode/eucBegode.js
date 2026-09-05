@@ -99,10 +99,14 @@ euc.temp.hapt=function(){
 	}
 };
 //firmware banner: GW stock, JN ExtremeBull, CF Freestyl3r, BF SmirnoV.
-//the two custom ones report pwm in the live frame, stock does not.
-euc.temp.firm=function(id){
-	if (id!=0x4757 && id!=0x4A4E && id!=0x4346 && id!=0x4246) return 0;
-	euc.temp.hwPwm = (id==0x4346||id==0x4246)?1:0;
+//the two custom ones report pwm in the live frame, stock does not. BF is Alexovik's
+//protocol: same frame numbers, several fields mean something else, so it gets its own
+//latch. matched on the trimmed chunk the way WheelLog does, not on a word at offset 0.
+euc.temp.firm=function(s){
+	let p=s.slice(0,2);
+	if (p!="GW" && p!="JN" && p!="CF" && p!="BF") return 0;
+	euc.temp.hwPwm = (p=="CF"||p=="BF")?1:0;
+	euc.temp.alx = (p=="BF")?1:0;
 	return 1;
 };
 //one command at a time, and one byte at a time. the wheel sits behind a serial to ble
@@ -183,16 +187,19 @@ euc.temp.main=function(event){
 	} else if (endP!=-1) {
 		euc.temp.type(new DataView(E.toUint8Array(euc.temp.last,part.slice(0,endP+4)).buffer));
 		euc.temp.last=[];
-	} else { // model/firm
-		if (event.target.value.getUint32(0) == 0x4E414D45) { //fetchModel
+	} else { // model/firm banner
+		//matched on the trimmed chunk, as WheelLog does. the old test read a word at
+		//offset 0, so a reply with any leading byte was thrown away for the whole ride.
+		let s = E.toString(event.target.value.buffer).trim();
+		if (s.slice(0,4)=="NAME") { //fetchModel
 			console.log("model fetch responce:",event.target.value.buffer);
-			euc.dash.info.get.modl =  E.toString(event.target.value.buffer).slice(5).trim();
+			euc.dash.info.get.modl = s.slice(5).trim();
 			if (euc.dash.info.get.modl=="Barton") euc.dash.info.get.modl="RecioWheel";
 			if (!ew.do.fileRead("dash","slot"+ew.do.fileRead("dash","slot")+"Model"))
 				ew.do.fileWrite("dash","slot"+ew.do.fileRead("dash","slot")+"Model",euc.dash.info.get.modl);
 			//no per model table: pack, empty cell and free spin speed are set in dash options
-		} else if (euc.temp.firm(event.target.value.getInt16(0))) { //fetchFirmware
-			euc.dash.info.get.firm = E.toString(event.target.value.buffer).slice(2);
+		} else if (euc.temp.firm(s)) { //fetchFirmware
+			euc.dash.info.get.firm = s.slice(2).trim();
 		}
 	}
 };
@@ -225,11 +232,12 @@ euc.temp.pck0=function(data) {
 	euc.dash.alrt.spd.cc = ( euc.dash.alrt.spd.hapt.hi <= euc.dash.live.spd )? 2 : ( euc.dash.alrt.spd.hapt.low <= euc.dash.live.spd )? 1 : 0 ;
 	if ( euc.dash.alrt.spd.hapt.en && euc.dash.alrt.spd.cc == 2 )
 		euc.is.alert = 1 + Math.round((euc.dash.live.spd-euc.dash.alrt.spd.hapt.hi) / euc.dash.alrt.spd.hapt.step) ;
-	//trip last
+	//trip last. on Alexovik firmware offset 8 is battery current, not distance
 	//euc.dash.trip.last=data.getUint32(6)/1000;
-	euc.dash.trip.last=data.getUint16(8)/1000;
-	//amp
-	euc.dash.live.amp=data.getInt16(10)/1000;
+	if (!euc.temp.alx) euc.dash.trip.last=data.getUint16(8)/1000;
+	//amp, phase current. hundredths of an amp, tenths on Alexovik firmware.
+	//this was /1000, which put it 10x low and left the thresholds below unreachable.
+	euc.dash.live.amp=data.getInt16(10)/(euc.temp.alx?10:100);
 	if (euc.dash.opt.unit.ampR) euc.dash.live.amp=-euc.dash.live.amp;
 	euc.log.ampL.unshift(Math.round(euc.dash.live.amp));
 	if (20<euc.log.ampL.length) euc.log.ampL.pop();
@@ -238,22 +246,30 @@ euc.temp.pck0=function(data) {
 		if (euc.dash.alrt.amp.hapt.hi<=euc.dash.live.amp)	euc.is.alert =  euc.is.alert + 1 + Math.round( (euc.dash.live.amp - euc.dash.alrt.amp.hapt.hi) / euc.dash.alrt.amp.hapt.step) ;
 		else euc.is.alert =  euc.is.alert + 1 + Math.round(-(euc.dash.live.amp - euc.dash.alrt.amp.hapt.low) / euc.dash.alrt.amp.hapt.step) ;
 	}
-	//temp
-	euc.dash.live.tmp=(data.getInt16(12) /340.0)+36.53;
+	//temp, mpu6050 on stock, mpu6500 on Alexovik firmware
+	euc.dash.live.tmp=euc.temp.alx?(data.getInt16(12)/333.87)+21.0:(data.getInt16(12)/340.0)+36.53;
 	euc.dash.alrt.tmp.cc=(euc.dash.alrt.tmp.hapt.hi - 5 <= euc.dash.live.tmp )? (euc.dash.alrt.tmp.hapt.hi <= euc.dash.live.tmp )?2:1:0;
 	if (euc.dash.alrt.tmp.hapt.en && euc.dash.alrt.tmp.cc==2) euc.is.alert++;
 	//pwm. hardware mode never estimates: frame 7 if the wheel sends it, else frame 0 on
 	//custom firmware (tenths of a percent), else a flat 0 saying this wheel reports none.
 	if (!euc.dash.alrt.pwm.hw) euc.temp.pwmEst();
 	else if (!euc.temp.tPwm) euc.temp.pwmSet(euc.temp.hwPwm?Math.abs(data.getInt16(14))/10:0);
-	//volume, held off with the same counter, it is a setting the user can change
-	if (!euc.temp.lock) euc.dash.vol=data.getUint16(16);
+	//volume, held off with the same counter, it is a setting the user can change.
+	//Alexovik firmware puts a trick counter in this byte, not a volume.
+	if (!euc.temp.alx && !euc.temp.lock) euc.dash.vol=data.getUint16(16);
 };
 euc.temp.pck1=function(data) {
-  euc.dash.alrt.pwm.val = data.getUint16(2);
+	//Alexovik firmware sends riding mode here, everyone else sends the bms/pwm frame
+	if (euc.temp.alx) {
+		if (euc.temp.lock) euc.temp.lock--;
+		else euc.dash.opt.ride.mode = data.getUint8(6) & 0x03;
+		return;
+	}
+	euc.dash.alrt.pwm.val = data.getUint16(2);
 };
 //sent by main boards with firmware after 09.2024
 euc.temp.pck7=function(data) {
+	if (euc.temp.alx) return;
 	//motor temp, whole degrees
 	euc.dash.live.tmpM = data.getInt16(6);
 	//pwm, whole percent
@@ -264,6 +280,8 @@ euc.temp.pck7=function(data) {
 euc.temp.pck4=function(data) {
 	euc.dash.trip.totl=data.getUint32(2)/1000;
 	euc.log.trip.forEach(function(val,pos){ if (!val) euc.log.trip[pos]=euc.dash.trip.totl;});
+	//Alexovik firmware carries only distance here, its settings live in frame 0xFF
+	if (euc.temp.alx) return;
 	//a setting written a moment ago is not in the wheel's frames yet. euc.temp.lock holds
 	//wheel state off for a couple of frames, WheelLog's lock_Changes, so the screen does
 	//not snap back to the old value and send the wrong command on the next tap.
@@ -309,6 +327,27 @@ euc.temp.pck4=function(data) {
 	if (20<euc.log.almL.length) euc.log.almL.pop();
 };
 
+//WheelLog asks V then N over and over until the wheel answers, because one lost write or
+//a reply split across two notifications otherwise leaves the banner empty for the whole
+//ride, and an empty firmware banner also means euc.temp.hwPwm is never set, so hardware
+//pwm silently reports 0. Retries never take the line from a settings write and never take
+//the lockout, so a tap always wins over a retry.
+euc.temp.fetch=function(c,n){
+	euc.tout.fetch=0;
+	if (euc.state=="OFF") return;
+	if (euc.dash.info.get.firm && euc.dash.info.get.modl) return;
+	if (30<=n) {
+		//give up the way WheelLog does, so the rest of the dash stops waiting on it
+		if (!euc.dash.info.get.firm) { euc.dash.info.get.firm="-"; euc.temp.hwPwm=0; euc.temp.alx=0; }
+		if (!euc.dash.info.get.modl) euc.dash.info.get.modl="Begode";
+		return;
+	}
+	if (!euc.tout.busy)
+		c.writeValue(euc.cmd(euc.dash.info.get.firm?"fetchModel":"fetchFirmware")).catch(euc.off);
+	euc.tout.fetch=setTimeout(function(){
+		if (euc.temp && euc.temp.fetch) euc.temp.fetch(c,n+1);
+	},300);
+};
 euc.temp.init=function(c) {
 	let hlc=[0,"lightsOn","lightsOff","lightsStrobe"];
 	//built as one byte string and sent spaced. an option that is off contributes no
@@ -318,22 +357,20 @@ euc.temp.init=function(c) {
 	if (euc.dash.auto.onC.HL) cob=cob.concat(euc.cmd(hlc[euc.dash.auto.onC.HL]));
 	if (euc.dash.auto.onC.beep) cob=cob.concat(euc.cmd("beep"));
 	if (euc.dash.auto.onC.led) cob=cob.concat(euc.cmd("ledMode",euc.dash.auto.onC.led-1));
-	if (!euc.dash.info.get.modl) {
-		console.log("model not found,fetch");
-		cob=cob.concat(euc.cmd("fetchModel"));
-	}
-	if (!euc.dash.info.get.firm) cob=cob.concat(euc.cmd("fetchFirmware"));
 	euc.is.run=1;
 	//hold the lockout for as long as this takes: whatever is queued behind it must not
 	//start writing into the middle of the connect sequence.
 	euc.temp.busy(100*cob.length+500);
-	//notifications first: the model and firmware banners are the answer to the last two
-	//writes and nothing is listening for them until this resolves.
+	//notifications first: the model and firmware banners are the answer to what the fetch
+	//loop writes and nothing is listening for them until this resolves.
 	c.startNotifications().then(function() {
 		if (cob.length) return euc.temp.seq(c,cob,100);
+	}).then(function() {
+		euc.temp.fetch(c,0);
 	}).catch(euc.off);
 };
 euc.temp.exit=function(c) {
+	if (euc.tout.fetch) {clearTimeout(euc.tout.fetch);euc.tout.fetch=0;}
 	if (euc.gatt && euc.gatt.connected) {
 		let hld=[0,"lightsOn","lightsOff","lightsStrobe"];
 		let cob=[];

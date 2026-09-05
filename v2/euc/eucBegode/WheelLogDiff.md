@@ -101,7 +101,7 @@ Related: `euc.cmd("none")` returns `[]` and `eucBegode.js:280` passes that strai
 `c.writeValue([])`, inside a chain ending in `.catch(euc.off)` — if Espruino rejects a
 zero-length write, that disconnects the wheel. WheelLog simply sends nothing.
 
-## 5. Phase current is 10x low
+## 5. Phase current is 10x low — FIXED (Begode and Veteran)
 
 ```js
 euc.dash.live.amp = data.getInt16(10)/1000;   // eucBegode.js:207
@@ -145,7 +145,7 @@ For an odd tens digit (tiltback 45 -> `52.5`) this hands a float to `writeValue`
 relies on Espruino truncating rather than rounding. Java's
 `(byte)((maxSpeed / 10) + 0x30)` is unambiguous. Use `Math.floor(param/10)+48`.
 
-## 8. Firmware/model fetch is single-shot
+## 8. Firmware/model fetch is single-shot — FIXED
 
 WheelLog retries `V` then `N` every 40 ms for up to 50 attempts, matches with
 `dataS.startsWith(...)` over the whole chunk, and falls back to `fw = "-"` with
@@ -159,27 +159,39 @@ so hardware PWM mode silently reports 0.
 
 ## 9. Gaps (features, not bugs)
 
-- **SmirnoV / Alexovik (`BF`) firmware is mis-parsed.** `euc.temp.firm`
-  (`eucBegode.js:104`) accepts `0x4246` and sets `hwPwm`, but `pck0` then uses the
-  MPU6050 temperature formula (should be `/333.87 + 21.0`), reads offset 8 as trip
-  distance (it is battery current on that firmware), and does not apply the x10
-  phase-current scale. WheelLog branches on `bIsAlexovikFW` throughout. Either handle it
-  or drop `0x4246` from `firm()`.
+- **SmirnoV / Alexovik (`BF`) firmware is mis-parsed.** — FIXED. `euc.temp.alx` is now
+  latched off the `BF` banner and the frames branch on it the way WheelLog branches on
+  `bIsAlexovikFW`: MPU6500 temperature (`/333.87 + 21.0`), phase current at tenths of an
+  amp, offset 8 left alone (it is battery current there, not trip distance), offset 16
+  left alone (a trick counter, not volume), frame 1 read as riding mode, frame 4 read for
+  distance only, frame 7 skipped. Battery current itself is still dropped — there is no
+  field or screen for it.
 - **Frame `0xFF`** (Alexovik advanced: extreme mode, braking current, PID factors,
-  rotation control) — not decoded at all.
-- **Frame 1 BMS** — eucWatch reads only `pwmLimit` at offset 2 (`:228`, and that value
-  is never used); no cells, no `autoVoltage`.
-- **`pwmLimit` command** (`:37`) is defined but never called from anywhere; WheelLog has
-  no equivalent either.
-- **Miles/km toggle** — commands exist (`:31-32`), `euc.dash.opt.unit.mile` is decoded
-  (`:246`), but no screen sets it.
-- **Strobe guard** — WheelLog blocks strobe when alarm mode is `I` (Freestyl3r uses
-  strobe for its PWM tiltback warning). `dashBegode.js:142` has no such check, so STROBE
-  and PWM TILT will fight each other.
+  rotation control) — not decoded at all. This is where BF keeps its settings, so a BF
+  wheel currently shows no wheel settings at all. Needs a screen as well as a decoder.
+- **Frame 1 BMS** — eucWatch reads only `pwmLimit` at offset 2 (and that value is never
+  used); no cells, no `autoVoltage`.
+- **`pwmLimit` command** is defined but never called from anywhere; WheelLog has no
+  equivalent either.
+- **Miles/km toggle** — commands exist, `euc.dash.opt.unit.mile` is decoded, but no
+  screen sets it.
+- **Strobe guard** — FIXED. `dashBegode.js` now refuses to turn strobe on while alarm
+  mode is `I`, because Freestyl3r drives strobe itself as its PWM tiltback warning.
+  Turning strobe back off is always allowed.
 
 ## Status
 
-Done: #1, #2, #3, #4, #6 (LED and light widths) and #7 — module 1.83, dash 1.81.
+Done: #1, #2, #3, #4, #5, #6 (LED and light widths), #7, #8, and in #9 the Alexovik
+frames and the strobe guard — eucBegode 1.84, euc 1.81, eucVeteran 2.11, dash 1.82.
 
-Left: #5 phase current scale, #6's volume read (needs a real wheel to confirm what
-bytes 16-17 carry), #8 single-shot firmware/model fetch, #9 feature gaps.
+Left, all of it needing either a real wheel or new UI:
+
+- #6's volume read. Bytes 16-17 of frame 0 are `FF F8` in WheelLog's own sample, not a
+  1-9 volume, and WheelLog does not parse them at all. **Needs checking on real
+  hardware**: what is `dashBegodeOpt2` actually displaying?
+- #9 frame `0xFF` — the Alexovik settings frame. Decoding it is straightforward; it also
+  needs a screen, because none of the existing ones map onto those fields.
+- #9 frame 1 BMS — cells and `autoVoltage`.
+- #9 miles/km toggle — the commands and the decode are both there, only a screen is
+  missing.
+- #9 `pwmLimit` — defined, unused, and WheelLog has no equivalent. Probably delete it.
