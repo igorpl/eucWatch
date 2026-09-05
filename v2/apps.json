@@ -436,7 +436,7 @@
 	{ "id": "dashVeteran",
 		"name": "Veteran Settings",
 		"icon": "../../P8-testing/dashVeteran/icon.png",
-		"version":"1.94.2",
+		"version":"1.94.3",
 		"description": "EUC dashboard, Veteran settings gui files.",
 		"tags": "euc",
 	    "needsFeatures":["V1"],

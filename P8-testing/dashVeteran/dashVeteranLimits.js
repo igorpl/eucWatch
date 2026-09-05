@@ -29,13 +29,11 @@ face[0] = {
 		if (!this.setE) {
 			if (this.alr!=euc.dash.alrt.spd.alrm){
 				this.alr=euc.dash.alrt.spd.alrm;
-				this.btn(200<=this.alr?0:1,"ALERT",20,120,20,12,1,0,0,239,97,200<=this.alr?"OFF":this.disp(this.alr),30,120,50);
+				this.btn(1,"ALERT",20,120,20,12,1,0,0,239,97,this.disp(this.alr),30,120,50);
 			}
 			if (this.lim!=euc.dash.alrt.spd.max){
 				this.lim=euc.dash.alrt.spd.max;
-				//the wheel parks the limit at 200 when it is off, and the Leaperkim app can
-				//only send 10..120, so it cannot be turned back off from here
-				this.btn(120<this.lim?0:1,"LIMIT",20,120,120,12,1,0,100,239,195,120<this.lim?"OFF":this.disp(this.lim),30,120,150);
+				this.btn(1,"LIMIT",20,120,120,12,1,0,100,239,195,this.disp(this.lim),30,120,150);
 			}
 		}
 		this.tid=setTimeout(function(t,o){
@@ -43,16 +41,16 @@ face[0] = {
 		  t.show();
 		},200,this);
 	},
-	//the wheel's own menu steps in 5 km/h, so match it rather than the app's 1 km/h
-	lad: function(a){
+	//the wheel's own menu steps in 5 km/h, so match it rather than the app's 1 km/h, and
+	//end on the same 200 rung the wheel offers for both settings. The Leaperkim app caps
+	//the limit at 120, but the wheel's own menu goes to 200 and reports it back, so it is
+	//offered here too.
+	lad: function(){
 		let l=[];
-		for (let s=10;s<=(a?100:120);s+=5) l.push(s);
-		//200 is the wheel's "no alarm" position, it has no equivalent for the limit
-		if (a) l.push(200);
+		for (let s=10;s<=100;s+=5) l.push(s);
+		l.push(200);
 		return l;
 	},
-	//100 is a real alarm setting, only the wheel's 200 rung and a limit above what can be
-	//set mean off, so the callers decide that rather than this
 	disp: function(v){
 		return Math.round(v*euc.dash.opt.unit.fact.spd*((ew.def.dash.mph)?0.625:1)).toString(10);
 	},
@@ -88,7 +86,7 @@ face[0] = {
 	},
 	set: function(a,v,txt){
 		this.setE=a?1:2;
-		this.setL=this.lad(a);
+		this.setL=this.lad();
 		//snap onto the nearest rung of the ladder, the wheel may hold a value between them
 		this.setI=0;
 		for (let i=0;i<this.setL.length;i++) if (Math.abs(this.setL[i]-v)<Math.abs(this.setL[this.setI]-v)) this.setI=i;
@@ -101,9 +99,12 @@ face[0] = {
 		this.g.flip();
 		this.val();
 	},
+	//Anything drawn outside the box is not cleared on the next pass, so the sides of a
+	//three digit number survived when it shrank back to two. The box now runs the full
+	//width between the < and >, and three digits are drawn smaller so they cannot spill.
 	val: function(){
-		let v=this.setL[this.setI];
-		this.btn(0,200<=v?"OFF":this.disp(v),100,126,60,12,1,60,40,180,160);
+		let t=this.disp(this.setL[this.setI]);
+		this.btn(0,t,(t.length<3)?100:75,126,60,12,1,20,40,225,160);
 	},
 	//sends the pending value and drops back to the two button page
 	send: function(){

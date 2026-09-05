@@ -294,7 +294,7 @@
 	{ "id": "dashVeteran",
 		"name": "Veteran Settings",
 		"icon": "icon.png",
-		"version":"1.92.3",
+		"version":"1.92.4",
 		"description": "EUC dashboard, Veteran settings gui files.",
 		"tags": "euc",
 		"storage": [
