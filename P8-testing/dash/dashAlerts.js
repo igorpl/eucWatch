@@ -23,8 +23,7 @@ face[0] = {
 			this.btn(euc.dash.alrt.tmp.hapt.en,"TEMP",25,60,136,4,1,0,100,119,195);
 			this.btn(euc.dash.alrt.bat.hapt.en,"BATT",25,180,136,4,1,122,100,239,195);
 		}
-      	//if ( euc.dash.info.get.makr=="Kingsong" ||euc.dash.info.get.makr=="Begode" || euc.dash.info.get.makr=="Veteran" ) {
-      	if ( euc.dash.info.get.makr=="Kingsong"  || euc.dash.info.get.makr=="Veteran") {
+      	if ( euc.dash.info.get.makr=="Kingsong" ||euc.dash.info.get.makr=="Begode" || euc.dash.info.get.makr=="Veteran" ) {
 			this.g.setColor(0,0);
 			this.g.fillRect(0,196,239,204);
 			this.g.setColor(1,3);
@@ -157,7 +156,18 @@ touchHandler[0]=function(e,x,y){
 						euc.dash.alrt.pwm.hapt.hi++;
 					face[0].btn(1,euc.dash.alrt.pwm.hapt.hi,50,120,70,1,0,80,60,150,130);
 					face[0].ntfy("ALERT IF OVER "+euc.dash.alrt.pwm.hapt.hi+" %","",18,12,1);
-				}else if  (y<=195) {
+				}else if  (y<=195) { //calibrate, only drawn for Begode: this speed is 100% pwm
+					if (euc.dash.info.get.makr=="Begode") {
+						if (euc.state!="READY") face[0].ntfy("CONNECT THE WHEEL","FIRST",18,12,1);
+						else if (euc.temp.tPwm||euc.temp.hwPwm) face[0].ntfy("WHEEL REPORTS","REAL PWM",18,12,1);
+						else if (euc.dash.live.spd<5||!euc.dash.live.volt) face[0].ntfy("RIDE AT TOP SPEED","THEN TAP",18,12,1);
+						else {
+							euc.dash.alrt.pwm.rotS=euc.dash.live.spd;
+							euc.dash.alrt.pwm.rotV=euc.dash.live.volt;
+							euc.updateDash(require("Storage").readJSON("dash.json",1).slot);
+							face[0].ntfy("100% PWM AT "+((ew.def.dash.mph)?(euc.dash.alrt.pwm.rotS*0.625).toFixed(1)+" MPH":euc.dash.alrt.pwm.rotS.toFixed(1)+" KPH"),"",18,12,1);
+						}
+					}
 				}  else { //haptic
 					euc.dash.alrt.pwm.hapt.en=1-euc.dash.alrt.pwm.hapt.en;
 					face[0].btn(euc.dash.alrt.pwm.hapt.en,euc.dash.alrt.pwm.hapt.en?"HAPTIC ENABLED":"HAPTIC DISABLED",18,120,215,4,1,0,198,239,239);
@@ -352,8 +362,7 @@ touchHandler[0]=function(e,x,y){
 		//} else {buzzer.nav(40);}
 		break;
 	case 3: //slide left event
-		//if ( !face[0].set &&!face[0].page&& (euc.dash.info.get.makr=="Kingsong" ||euc.dash.info.get.makr=="Begode" || euc.dash.info.get.makr=="Veteran" )) {
-		if ( !face[0].set &&!face[0].page&& (euc.dash.info.get.makr=="Kingsong" || euc.dash.info.get.makr=="Veteran")) {
+		if ( !face[0].set &&!face[0].page&& (euc.dash.info.get.makr=="Kingsong" ||euc.dash.info.get.makr=="Begode" || euc.dash.info.get.makr=="Veteran" )) {
 			face[0].page=1
 			face[0].init();return;
 			//face.go("dashAlertsPwm",0);

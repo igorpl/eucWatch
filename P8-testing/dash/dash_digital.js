@@ -49,7 +49,7 @@ face[0] = {
 			if (euc.log.almL.includes(1)) {
 				this.alF();
 				this.bar=0;
-			} else if ((5<=this.spd || 50<=this.topP) && euc.dash.info.get.makr=="Kingsong" || euc.dash.info.get.makr=="Veteran"){
+			} else if ((5<=this.spd || 50<=this.topP) && euc.dash.info.get.makr=="Kingsong" || euc.dash.info.get.makr=="Veteran" || euc.dash.info.get.makr=="Begode"){
 				if (this.pwm!=Math.round(euc.dash.live.pwm)) this.pwmF();
 				if (this.topP!=Math.round(euc.dash.trip.pwm)) this.pwmMF();
 			} else if (!this.bar) { this.topP=-1; this.bar=1; this.barF();}

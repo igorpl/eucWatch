@@ -53,6 +53,9 @@
 				"cc":0,
 				"en":0,
 				"val":0,
+				"rotS":50,
+				"rotV":84,
+				"pwrF":0.9,
 				"hapt":{"low":50,"hi":80,"step":1,"en":1}
 			}
 			

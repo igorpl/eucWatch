@@ -1,3 +1,4 @@
+1.81: Hardware PWM from frame 7 and from frame 0 on custom firmware, estimate as fallback
 1.80: rework
 1.51: Bug fix
 1.50: New Begode client

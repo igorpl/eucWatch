@@ -40,26 +40,27 @@ euc.cmd=function(cmd, param) {
     default:                return [];
   }
 };
+//rotS/rotV: speed (km/h) reached at rotV volts on full duty, used by euc.temp.pwmEst
 euc.temp.modelParams=function(model) {
   switch(model) {
-    case 'Mten3':       return { 'voltMultiplier': 1.25, 'minCellVolt': 3.3 };
-    case 'MCM5':        return { 'voltMultiplier': 1.25, 'minCellVolt': 3.3 };
-    case 'RecioWheel':  return { 'voltMultiplier': 1.25, 'minCellVolt': 3.3 };
-    case 'T3':          return { 'voltMultiplier': 1.25, 'minCellVolt': 3.25 };
-    case 'Nikola':      return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25 };
-    case 'Msuper Pro':  return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25 };
-    case 'MSP C30':     return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25 };
-    case 'MSP C38':     return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25 };
-    case 'RS C30':      return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25 };
-    case 'RS C38':      return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25 };
-    case 'EX':          return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25 };
-    case 'EX20S C30':   return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25 };
-    case 'EX20S C38':   return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25 };
-    case 'Monster':     return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25 };
-    case 'EXN':         return { 'voltMultiplier': 1.50, 'minCellVolt': 3.15 };
-    case 'Monster Pro': return { 'voltMultiplier': 1.50, 'minCellVolt': 3.1 };
-    case 'Master':      return { 'voltMultiplier': 2,    'minCellVolt': 3.25 };
-    default:            return { 'voltMultiplier': 1,    'minCellVolt': 3.3 };
+    case 'Mten3':       return { 'voltMultiplier': 1.25, 'minCellVolt': 3.3 , 'rotS': 56.0, 'rotV': 84.0 };
+    case 'MCM5':        return { 'voltMultiplier': 1.25, 'minCellVolt': 3.3 , 'rotS': 56.0, 'rotV': 84.0 };
+    case 'RecioWheel':  return { 'voltMultiplier': 1.25, 'minCellVolt': 3.3 , 'rotS': 56.0, 'rotV': 84.0 };
+    case 'T3':          return { 'voltMultiplier': 1.25, 'minCellVolt': 3.25, 'rotS': 66.5, 'rotV': 84.0 };
+    case 'Nikola':      return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS': 85.5, 'rotV':100.8 };
+    case 'Msuper Pro':  return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS': 79.0, 'rotV':100.8 };
+    case 'MSP C30':     return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS':100.5, 'rotV':100.8 };
+    case 'MSP C38':     return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS': 79.0, 'rotV':100.8 };
+    case 'RS C30':      return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS':105.0, 'rotV':100.8 };
+    case 'RS C38':      return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS': 79.0, 'rotV':100.8 };
+    case 'EX':          return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS': 79.0, 'rotV':100.8 };
+    case 'EX20S C30':   return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS':105.0, 'rotV':100.8 };
+    case 'EX20S C38':   return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS': 79.0, 'rotV':100.8 };
+    case 'Monster':     return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS': 74.4, 'rotV':100.8 };
+    case 'EXN':         return { 'voltMultiplier': 1.50, 'minCellVolt': 3.15, 'rotS':107.1, 'rotV':100.8 };
+    case 'Monster Pro': return { 'voltMultiplier': 1.50, 'minCellVolt': 3.1 , 'rotS': 93.0, 'rotV':100.8 };
+    case 'Master':      return { 'voltMultiplier': 2,    'minCellVolt': 3.25, 'rotS':113.0, 'rotV':134.4 };
+    default:            return { 'voltMultiplier': 1,    'minCellVolt': 3.3 , 'rotS': 50.0, 'rotV': 84.0 };
   }
 };
 euc.temp.faultAlarms =function(code) {
@@ -73,6 +74,22 @@ euc.temp.faultAlarms =function(code) {
 		case 6: return 'hall sensor error';
 		case 7: return 'transport mode';
 	}
+};
+//pwm, single entry point for all three sources
+euc.temp.pwmSet=function(p){
+	euc.dash.live.pwm = (p<0)?0:(100<p)?100:Math.round(p);
+	if (euc.dash.trip.pwm < euc.dash.live.pwm) euc.dash.trip.pwm = euc.dash.live.pwm;
+};
+//garage slots saved before the estimate existed have no rotS/rotV/pwrF
+if (!euc.dash.alrt.pwm.rotS) {
+	euc.dash.alrt.pwm.rotS=50;
+	euc.dash.alrt.pwm.rotV=84;
+	euc.dash.alrt.pwm.pwrF=0.9;
+}
+//pwm estimated from speed, used when the wheel reports no hardware pwm
+euc.temp.pwmEst=function(){
+	let d = (euc.dash.alrt.pwm.rotS/euc.dash.alrt.pwm.rotV) * euc.dash.live.volt * euc.dash.alrt.pwm.pwrF;
+	if (0 < d) euc.temp.pwmSet(100*euc.dash.live.spd/d);
 };
 euc.temp.hapt=function(){
 	//haptic
@@ -95,6 +112,13 @@ euc.temp.hapt=function(){
 		buzzer.euc(a);
 		setTimeout(() => { euc.is.buzz = 0; }, 3000);
 	}
+};
+//firmware banner: GW stock, JN ExtremeBull, CF Freestyl3r, BF SmirnoV.
+//the two custom ones report pwm in the live frame, stock does not.
+euc.temp.firm=function(id){
+	if (id!=0x4757 && id!=0x4A4E && id!=0x4346 && id!=0x4246) return 0;
+	euc.temp.hwPwm = (id==0x4346||id==0x4246)?1:0;
+	return 1;
 };
 euc.temp.line="";
 euc.temp.extd= function(event) {
@@ -156,9 +180,15 @@ euc.temp.main=function(event){
 			if (euc.dash.info.get.modl=="Barton") euc.dash.info.get.modl="RecioWheel";
 			if (!ew.do.fileRead("dash","slot"+ew.do.fileRead("dash","slot")+"Model"))
 				ew.do.fileWrite("dash","slot"+ew.do.fileRead("dash","slot")+"Model",euc.dash.info.get.modl);
-			euc.dash.opt.bat.pack=euc.temp.modelParams(euc.dash.info.get.modl).voltMultiplier * 16;
-			euc.dash.opt.bat.low=euc.temp.modelParams(euc.dash.info.get.modl).minCellVolt*100;
-		} else if (event.target.value.getInt16(0) == 0x4757) { //fetchFirmware
+			let mp=euc.temp.modelParams(euc.dash.info.get.modl);
+			euc.dash.opt.bat.pack=mp.voltMultiplier * 16;
+			euc.dash.opt.bat.low=mp.minCellVolt*100;
+			//seed the pwm estimate, a calibration done by the user is kept
+			if (euc.dash.alrt.pwm.rotS==50 && euc.dash.alrt.pwm.rotV==84) {
+				euc.dash.alrt.pwm.rotS=mp.rotS;
+				euc.dash.alrt.pwm.rotV=mp.rotV;
+			}
+		} else if (euc.temp.firm(event.target.value.getInt16(0))) { //fetchFirmware
 			euc.dash.info.get.firm = E.toString(event.target.value.buffer).slice(2);
 		}
 	}
@@ -170,6 +200,7 @@ euc.temp.type=function(data){
 		if (data.buffer[18]==0)	euc.temp.pck0(data);
 		else if (data.buffer[18]==4) euc.temp.pck4(data);
 		else if (data.buffer[18]==1)	euc.temp.pck1(data);	//master
+		else if (data.buffer[18]==7)	euc.temp.pck7(data);	//extended, hardware pwm
 		//haptic
 		euc.temp.hapt();
 	}
@@ -208,13 +239,24 @@ euc.temp.pck0=function(data) {
 	euc.dash.live.tmp=(data.getInt16(12) /340.0)+36.53;
 	euc.dash.alrt.tmp.cc=(euc.dash.alrt.tmp.hapt.hi - 5 <= euc.dash.live.tmp )? (euc.dash.alrt.tmp.hapt.hi <= euc.dash.live.tmp )?2:1:0;
 	if (euc.dash.alrt.tmp.hapt.en && euc.dash.alrt.tmp.cc==2) euc.is.alert++;
-	//resets
-	euc.dash.rsts=data.getUint16(14);
+	//pwm, custom firmware only, tenths of a percent
+	if (euc.temp.hwPwm && !euc.temp.tPwm) euc.temp.pwmSet(Math.abs(data.getInt16(14))/10);
 	//volume
 	euc.dash.vol=data.getUint16(16);
+	//pwm estimate, when the wheel reports none
+	if (!euc.temp.hwPwm && !euc.temp.tPwm) euc.temp.pwmEst();
 };
 euc.temp.pck1=function(data) {
   euc.dash.alrt.pwm.val = data.getUint16(2);
+};
+//sent by main boards with firmware after 09.2024
+euc.temp.pck7=function(data) {
+	//motor temp, whole degrees
+	euc.dash.live.tmpM = data.getInt16(6);
+	//pwm, whole percent
+	let p = data.getInt16(8);
+	if (Math.abs(p)) euc.temp.tPwm=1;
+	if (euc.temp.tPwm) euc.temp.pwmSet(Math.abs(p));
 };
 euc.temp.pck4=function(data) {
 	euc.dash.trip.totl=data.getUint32(2)/1000;
@@ -303,6 +345,10 @@ euc.is.run=0;
 //start
 euc.wri=function(i) {if (euc.dbg) console.log("not connected yet"); if (i=="end") euc.off(); return;};
 euc.conn=function(mac){
+	euc.dash.trip.pwm=0;
+	//euc.temp.tPwm / euc.temp.hwPwm are not cleared here on purpose: euc.temp is
+	//rebuilt per session in euc.js, so both latches survive a reconnect, and the
+	//firmware banner is only re-fetched when info.get.firm is still empty.
 	//check if connected
 	if ( euc.gatt!="undefined") {
 		if (euc.gatt.connected) {euc.gatt.disconnect();return;}

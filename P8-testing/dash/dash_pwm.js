@@ -38,7 +38,6 @@ face[0] = {
       if (ew.def.dash.batS){ if (this.bat!=euc.dash.live.bat) this.batf();}
       else if (this.volt!=euc.dash.live.volt.toFixed(1)) this.vltf();
       //if (this.pwm1!=euc.dash.live.pwm) this.pwmE();
-      if (euc.dash.info.get.makr=="Begode"&&!euc.temp.ext) euc.wri("extendedPacket");
       //this.afterScrOff=false;
     } else if (euc.state=="OFF") {
       setTimeout(function(){
@@ -230,7 +229,6 @@ touchHandler[0]=function(e,x,y){
       this.timeout();
       break;
     case 1: //slide down event
-      if (euc.dash.info.get.makr=="Begode") euc.wri("mainPacket");
       if (ew.def.dash.face+1>=ew.is.dash.length) ew.def.dash.face=0; else ew.def.dash.face++;
       face.go(ew.is.dash[ew.def.dash.face],0);
       return;
@@ -244,11 +242,9 @@ touchHandler[0]=function(e,x,y){
       this.timeout();
       break;
     case 3: //slide left event
-      if (euc.dash.info.get.makr=="Begode") euc.wri("mainPacket");
       (euc.state=="READY")?face.go('dash'+require("Storage").readJSON("dash.json",1)['slot'+require("Storage").readJSON("dash.json",1).slot+'Maker'],0):(euc.state=="OFF")?face.go("dashGarage",0):buzzer.nav(40);
       return;
     case 4: //slide right event (back action)
-      if (euc.dash.info.get.makr=="Begode") euc.wri("mainPacket");
       face.go("clock",0);
       return;
     case 12: //touch and hold(long press) event
