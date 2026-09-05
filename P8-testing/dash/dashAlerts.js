@@ -159,13 +159,13 @@ touchHandler[0]=function(e,x,y){
 				}else if  (y<=195) { //calibrate, only drawn for Begode: this speed is 100% pwm
 					if (euc.dash.info.get.makr=="Begode") {
 						if (euc.state!="READY") face[0].ntfy("CONNECT THE WHEEL","FIRST",18,12,1);
-						else if (euc.temp.tPwm||euc.temp.hwPwm) face[0].ntfy("WHEEL REPORTS","REAL PWM",18,12,1);
+						else if (euc.dash.alrt.pwm.hw) face[0].ntfy("PWM COMES FROM","THE WHEEL",18,12,1);
 						else if (euc.dash.live.spd<5||!euc.dash.live.volt) face[0].ntfy("RIDE AT TOP SPEED","THEN TAP",18,12,1);
 						else {
-							euc.dash.alrt.pwm.rotS=euc.dash.live.spd;
-							euc.dash.alrt.pwm.rotV=euc.dash.live.volt;
+							//rotS is quoted at a full pack, scale the reading up from the volts seen now
+							euc.dash.alrt.pwm.rotS=Math.round(euc.dash.live.spd*euc.temp.packV()/euc.dash.live.volt);
 							euc.updateDash(require("Storage").readJSON("dash.json",1).slot);
-							face[0].ntfy("100% PWM AT "+((ew.def.dash.mph)?(euc.dash.alrt.pwm.rotS*0.625).toFixed(1)+" MPH":euc.dash.alrt.pwm.rotS.toFixed(1)+" KPH"),"",18,12,1);
+							face[0].ntfy("100% PWM AT "+((ew.def.dash.mph)?Math.round(euc.dash.alrt.pwm.rotS*0.625)+" MPH":euc.dash.alrt.pwm.rotS+" KPH"),"",18,12,1);
 						}
 					}
 				}  else { //haptic

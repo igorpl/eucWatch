@@ -40,29 +40,6 @@ euc.cmd=function(cmd, param) {
     default:                return [];
   }
 };
-//rotS/rotV: speed (km/h) reached at rotV volts on full duty, used by euc.temp.pwmEst
-euc.temp.modelParams=function(model) {
-  switch(model) {
-    case 'Mten3':       return { 'voltMultiplier': 1.25, 'minCellVolt': 3.3 , 'rotS': 56.0, 'rotV': 84.0 };
-    case 'MCM5':        return { 'voltMultiplier': 1.25, 'minCellVolt': 3.3 , 'rotS': 56.0, 'rotV': 84.0 };
-    case 'RecioWheel':  return { 'voltMultiplier': 1.25, 'minCellVolt': 3.3 , 'rotS': 56.0, 'rotV': 84.0 };
-    case 'T3':          return { 'voltMultiplier': 1.25, 'minCellVolt': 3.25, 'rotS': 66.5, 'rotV': 84.0 };
-    case 'Nikola':      return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS': 85.5, 'rotV':100.8 };
-    case 'Msuper Pro':  return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS': 79.0, 'rotV':100.8 };
-    case 'MSP C30':     return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS':100.5, 'rotV':100.8 };
-    case 'MSP C38':     return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS': 79.0, 'rotV':100.8 };
-    case 'RS C30':      return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS':105.0, 'rotV':100.8 };
-    case 'RS C38':      return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS': 79.0, 'rotV':100.8 };
-    case 'EX':          return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS': 79.0, 'rotV':100.8 };
-    case 'EX20S C30':   return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS':105.0, 'rotV':100.8 };
-    case 'EX20S C38':   return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS': 79.0, 'rotV':100.8 };
-    case 'Monster':     return { 'voltMultiplier': 1.50, 'minCellVolt': 3.25, 'rotS': 74.4, 'rotV':100.8 };
-    case 'EXN':         return { 'voltMultiplier': 1.50, 'minCellVolt': 3.15, 'rotS':107.1, 'rotV':100.8 };
-    case 'Monster Pro': return { 'voltMultiplier': 1.50, 'minCellVolt': 3.1 , 'rotS': 93.0, 'rotV':100.8 };
-    case 'Master':      return { 'voltMultiplier': 2,    'minCellVolt': 3.25, 'rotS':113.0, 'rotV':134.4 };
-    default:            return { 'voltMultiplier': 1,    'minCellVolt': 3.3 , 'rotS': 50.0, 'rotV': 84.0 };
-  }
-};
 euc.temp.faultAlarms =function(code) {
 	switch(code) {
 		case 0: return 'high power';
@@ -75,20 +52,28 @@ euc.temp.faultAlarms =function(code) {
 		case 7: return 'transport mode';
 	}
 };
-//pwm, single entry point for all three sources
+//pwm, single entry point for every source
 euc.temp.pwmSet=function(p){
 	euc.dash.live.pwm = (p<0)?0:(100<p)?100:Math.round(p);
 	if (euc.dash.trip.pwm < euc.dash.live.pwm) euc.dash.trip.pwm = euc.dash.live.pwm;
 };
-//garage slots saved before the estimate existed have no rotS/rotV/pwrF
-if (!euc.dash.alrt.pwm.rotS) {
-	euc.dash.alrt.pwm.rotS=50;
-	euc.dash.alrt.pwm.rotV=84;
-	euc.dash.alrt.pwm.pwrF=0.9;
+//full pack voltage, the point rotS is quoted at. pack is the cell count set in dash options
+euc.temp.packV=function(){ return euc.dash.opt.bat.pack*4.2; };
+//pack was a voltage multiplier before it became a cell count, 1.5 meant 100.8V.
+//anything under 8 is one of those, no wheel runs on 8 cells.
+if (euc.dash.opt.bat.pack<8) euc.dash.opt.bat.pack=Math.round(euc.dash.opt.bat.pack*16);
+//older garage slots: no hw flag, no rotS, or a rotS/rotV pair from the model table.
+//rotV is gone, rotS now means free spin speed at a full pack, so fold the old pair in.
+if (euc.dash.alrt.pwm.hw===undefined) euc.dash.alrt.pwm.hw=0;
+if (!euc.dash.alrt.pwm.pwrF) euc.dash.alrt.pwm.pwrF=0.9;
+if (!euc.dash.alrt.pwm.rotS) euc.dash.alrt.pwm.rotS=50;
+else if (euc.dash.alrt.pwm.rotV) {
+	euc.dash.alrt.pwm.rotS=Math.round(euc.dash.alrt.pwm.rotS*euc.temp.packV()/euc.dash.alrt.pwm.rotV);
+	delete euc.dash.alrt.pwm.rotV;
 }
-//pwm estimated from speed, used when the wheel reports no hardware pwm
+//pwm estimated from speed, software mode
 euc.temp.pwmEst=function(){
-	let d = (euc.dash.alrt.pwm.rotS/euc.dash.alrt.pwm.rotV) * euc.dash.live.volt * euc.dash.alrt.pwm.pwrF;
+	let d = (euc.dash.alrt.pwm.rotS/euc.temp.packV()) * euc.dash.live.volt * euc.dash.alrt.pwm.pwrF;
 	if (0 < d) euc.temp.pwmSet(100*euc.dash.live.spd/d);
 };
 euc.temp.hapt=function(){
@@ -180,14 +165,7 @@ euc.temp.main=function(event){
 			if (euc.dash.info.get.modl=="Barton") euc.dash.info.get.modl="RecioWheel";
 			if (!ew.do.fileRead("dash","slot"+ew.do.fileRead("dash","slot")+"Model"))
 				ew.do.fileWrite("dash","slot"+ew.do.fileRead("dash","slot")+"Model",euc.dash.info.get.modl);
-			let mp=euc.temp.modelParams(euc.dash.info.get.modl);
-			euc.dash.opt.bat.pack=mp.voltMultiplier * 16;
-			euc.dash.opt.bat.low=mp.minCellVolt*100;
-			//seed the pwm estimate, a calibration done by the user is kept
-			if (euc.dash.alrt.pwm.rotS==50 && euc.dash.alrt.pwm.rotV==84) {
-				euc.dash.alrt.pwm.rotS=mp.rotS;
-				euc.dash.alrt.pwm.rotV=mp.rotV;
-			}
+			//no per model table: pack, empty cell and free spin speed are set in dash options
 		} else if (euc.temp.firm(event.target.value.getInt16(0))) { //fetchFirmware
 			euc.dash.info.get.firm = E.toString(event.target.value.buffer).slice(2);
 		}
@@ -239,12 +217,12 @@ euc.temp.pck0=function(data) {
 	euc.dash.live.tmp=(data.getInt16(12) /340.0)+36.53;
 	euc.dash.alrt.tmp.cc=(euc.dash.alrt.tmp.hapt.hi - 5 <= euc.dash.live.tmp )? (euc.dash.alrt.tmp.hapt.hi <= euc.dash.live.tmp )?2:1:0;
 	if (euc.dash.alrt.tmp.hapt.en && euc.dash.alrt.tmp.cc==2) euc.is.alert++;
-	//pwm, custom firmware only, tenths of a percent
-	if (euc.temp.hwPwm && !euc.temp.tPwm) euc.temp.pwmSet(Math.abs(data.getInt16(14))/10);
+	//pwm. hardware mode never estimates: frame 7 if the wheel sends it, else frame 0 on
+	//custom firmware (tenths of a percent), else a flat 0 saying this wheel reports none.
+	if (!euc.dash.alrt.pwm.hw) euc.temp.pwmEst();
+	else if (!euc.temp.tPwm) euc.temp.pwmSet(euc.temp.hwPwm?Math.abs(data.getInt16(14))/10:0);
 	//volume
 	euc.dash.vol=data.getUint16(16);
-	//pwm estimate, when the wheel reports none
-	if (!euc.temp.hwPwm && !euc.temp.tPwm) euc.temp.pwmEst();
 };
 euc.temp.pck1=function(data) {
   euc.dash.alrt.pwm.val = data.getUint16(2);
@@ -256,7 +234,7 @@ euc.temp.pck7=function(data) {
 	//pwm, whole percent
 	let p = data.getInt16(8);
 	if (Math.abs(p)) euc.temp.tPwm=1;
-	if (euc.temp.tPwm) euc.temp.pwmSet(Math.abs(p));
+	if (euc.dash.alrt.pwm.hw && euc.temp.tPwm) euc.temp.pwmSet(Math.abs(p));
 };
 euc.temp.pck4=function(data) {
 	euc.dash.trip.totl=data.getUint32(2)/1000;
@@ -348,7 +326,9 @@ euc.conn=function(mac){
 	euc.dash.trip.pwm=0;
 	//euc.temp.tPwm / euc.temp.hwPwm are not cleared here on purpose: euc.temp is
 	//rebuilt per session in euc.js, so both latches survive a reconnect, and the
-	//firmware banner is only re-fetched when info.get.firm is still empty.
+	//firmware banner is only re-fetched when info.get.firm is still empty. They pick
+	//the source inside hardware mode, they no longer pick hardware over software:
+	//that is euc.dash.alrt.pwm.hw, set by hand on the dash options screen.
 	//check if connected
 	if ( euc.gatt!="undefined") {
 		if (euc.gatt.connected) {euc.gatt.disconnect();return;}

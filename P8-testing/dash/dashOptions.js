@@ -8,6 +8,8 @@ face[0] = {
 		if (this.ntid) {clearTimeout(this.ntid); this.ntid=0;}
 		if (!ew.def.dash.rtr) ew.def.dash.rtr=5;
 		this.page=0;
+		//pwm mode and free spin speed are Begode-only, nothing else reports or estimates pwm
+		this.bgd=(euc.dash.info.get.makr=="Begode");
 		this.g.setColor(0,0);
 		this.g.fillRect(0,160,239,239);
 		this.g.setColor(1,15);
@@ -80,6 +82,7 @@ face[0] = {
 				}else {
 					face[0].btn(1,"FULL",15,40,10,1,0,0,0,75,75,euc.dash.opt.bat.hi/100,30,40,35); //1
 					face[0].btn(1,"EMPTY",15,40,90,1,0,0,80,75,155,euc.dash.opt.bat.low/100,30,40,120); //4
+					if (t.bgd) face[0].btn(1,"SPIN",15,200,90,1,0,160,80,239,155,euc.dash.alrt.pwm.rotS,30,200,120); //6
 				}
 				t.g.setColor(0,0);
 				t.g.fillRect(0,156,239,239);
@@ -142,6 +145,7 @@ touchHandler[0]=function(e,x,y){
 				}else {
 					face[0].btn(1,"FULL",15,40,10,1,0,0,0,75,75,euc.dash.opt.bat.hi/100,30,40,35); //1
 					face[0].btn(1,"EMPTY",15,40,90,1,0,0,80,75,155,euc.dash.opt.bat.low/100,30,40,120); //4
+					if (face[0].bgd) face[0].btn(1,"SPIN",15,200,90,1,0,160,80,239,155,euc.dash.alrt.pwm.rotS,30,200,120); //6
 				}
 				touchHandler[0](e,x,y);
 				return;
@@ -185,7 +189,7 @@ touchHandler[0]=function(e,x,y){
 					face[0].ntfy("100% WHEN CELL IS AT",euc.dash.opt.bat.hi/100 + " Volt",30,1,12,3000,1);
 				}else if (face[0].set=="batE") { //bat
 					if (x<120){ //
-						euc.dash.opt.bat.low--; if ( euc.dash.opt.bat.low <= 300 ) euc.dash.opt.bat.low = 300;
+						euc.dash.opt.bat.low--; if ( euc.dash.opt.bat.low <= 280 ) euc.dash.opt.bat.low = 280;
 					}else{ //back
 						euc.dash.opt.bat.low++; if (340 <= euc.dash.opt.bat.low) euc.dash.opt.bat.low = 340;
 					}
@@ -197,8 +201,16 @@ touchHandler[0]=function(e,x,y){
 					}else{ //back
 						euc.dash.opt.bat.pack++; if (99 < euc.dash.opt.bat.pack) euc.dash.opt.bat.pack = 99;
 					}
-					face[0].btn(1,"PACK",15,200,90,4,0,160,80,239,155,"S" + euc.dash.opt.bat.pack.toString(10),30,200,120); //6
+					face[0].btn(1,"PACK",15,115,90,4,0,80,80,155,155,"S" + euc.dash.opt.bat.pack.toString(10),30,115,120); //5
 					face[0].ntfy("BATTERY VOLTAGE",euc.dash.opt.bat.pack*4.2,40,1,4,3000,1);
+				}else if (face[0].set=="spin") { //free spin speed, the 100% pwm point at a full pack
+					if (x<120){ //
+						euc.dash.alrt.pwm.rotS--; if (euc.dash.alrt.pwm.rotS < 20) euc.dash.alrt.pwm.rotS = 20;
+					}else{ //back
+						euc.dash.alrt.pwm.rotS++; if (250 < euc.dash.alrt.pwm.rotS) euc.dash.alrt.pwm.rotS = 250;
+					}
+					face[0].btn(1,"SPIN",15,200,90,12,0,160,80,239,155,euc.dash.alrt.pwm.rotS,30,200,120); //6
+					face[0].ntfy("100% PWM AT",((ew.def.dash.mph)?Math.round(euc.dash.alrt.pwm.rotS*0.625)+" MPH":euc.dash.alrt.pwm.rotS+" KPH"),30,1,4,3000,1);
 				}else  {
 					buzzer.nav(40);
 					face[0].set=0;
@@ -244,11 +256,15 @@ touchHandler[0]=function(e,x,y){
 				face[0].btn(1,"FULL",15,40,10,12,0,0,0,75,75,euc.dash.opt.bat.hi/100,30,40,35); //1
 				face[0].ntfy("100% WHEN CELL IS AT",euc.dash.opt.bat.hi/100 + " Volt",30,1,12,3000,1);
 			}else if (75<= x && x < 155 && y < 75) { //2
-				buzzer.nav(50);
-			}else if (155 <= x && y < 75) { //3
 				euc.dash.opt.unit.ampR=1-euc.dash.opt.unit.ampR;
-				face[0].btn(1,"AMP",15,200,10,4,1,160,0,239,75,(euc.dash.opt.unit.ampR)?"R":"N",30,200,35); //3
+				face[0].btn(1,"AMP",15,115,10,4,1,80,0,155,75,(euc.dash.opt.unit.ampR)?"R":"N",30,115,35); //2
 				face[0].ntfy("AMPERAGE REPORT",(euc.dash.opt.unit.ampR)?"REVERSED":"NORMAL",30,1,4,1500);
+				buzzer.nav([30,50,30]);
+			}else if (155 <= x && y < 75) { //3
+				if (!face[0].bgd) {buzzer.nav(40);return;}
+				euc.dash.alrt.pwm.hw=(euc.dash.alrt.pwm.hw)?0:1;
+				face[0].btn(1,"PWM",15,200,10,1,0,160,0,239,75,(euc.dash.alrt.pwm.hw)?"H":"S",30,200,35); //3
+				face[0].ntfy("PWM REPORTED BY",(euc.dash.alrt.pwm.hw)?"WHEEL":"WATCH",30,1,4,1500);
 				buzzer.nav([30,50,30]);
 			}else if (x<75 && 75 <y && y < 155) { //4   15,40,90,12,0,0,80,75,155,euc.dash.opt.unit.fact.spd,30,40,120);
 				buzzer.nav([30,50,30]);
@@ -256,11 +272,15 @@ touchHandler[0]=function(e,x,y){
 				face[0].btn(1,"EMPTY",15,40,90,12,0,0,80,75,155,euc.dash.opt.bat.low/100,30,40,120); //4
 				face[0].ntfy("0% WHEN CELL IS AT",euc.dash.opt.bat.low/100 + " Volt",30,1,12,3000,1);
 			}else if (75<= x && x < 155 && 75 <y && y < 155) { //5
-				buzzer.nav(40);
-			}else if (155 <= x && 75 <y && y < 155) { //6
 				face[0].set="batP";
-				face[0].btn(1,"PACK",15,200,90,4,0,160,80,239,155,"S" + euc.dash.opt.bat.pack.toString(10),30,200,120); //6
+				face[0].btn(1,"PACK",15,115,90,4,0,80,80,155,155,"S" + euc.dash.opt.bat.pack.toString(10),30,115,120); //5
 				face[0].ntfy("BATTERY VOLTAGE",euc.dash.opt.bat.pack*4.2,40,1,4,3000,1);
+				buzzer.nav([30,50,30]);
+			}else if (155 <= x && 75 <y && y < 155) { //6
+				if (!face[0].bgd) {buzzer.nav(40);return;}
+				face[0].set="spin";
+				face[0].btn(1,"SPIN",15,200,90,12,0,160,80,239,155,euc.dash.alrt.pwm.rotS,30,200,120); //6
+				face[0].ntfy("100% PWM AT",((ew.def.dash.mph)?Math.round(euc.dash.alrt.pwm.rotS*0.625)+" MPH":euc.dash.alrt.pwm.rotS+" KPH"),30,1,4,3000,1);
 				buzzer.nav([30,50,30]);
 			}else buzzer.nav(40);
 		}
@@ -292,14 +312,20 @@ touchHandler[0]=function(e,x,y){
 		//yhis.timeout();
 		if (!face[0].page) {
 			face[0].page=1;
-			euc.dash.opt.bat.pack = Math.ceil(euc.dash.opt.bat.pack);
+			//pack was a voltage multiplier before it became a cell count, 1.5 meant 100.8V
+			if (euc.dash.opt.bat.pack<8) euc.dash.opt.bat.pack = Math.round(euc.dash.opt.bat.pack*16);
 			if (!euc.dash.opt.bat.pack) euc.dash.opt.bat.pack = 1;
+			//slots stored before the pwm mode switch and the spin speed editor existed
+			if (!euc.dash.alrt.pwm.hw) euc.dash.alrt.pwm.hw = 0;
+			if (!euc.dash.alrt.pwm.rotS) euc.dash.alrt.pwm.rotS = 50;
 			face[0].btn(1,"FULL",15,40,10,1,0,0,0,75,75,euc.dash.opt.bat.hi/100,30,40,35); //1
-			face[0].btn(1,"",20,100,20,1,0,80,0,155,75,"",30,120,25);//2
-			face[0].btn(1,"AMP",15,200,10,4,0,160,0,239,75,(euc.dash.opt.unit.ampR)?"R":"N",30,200,35); //3
+			face[0].btn(1,"AMP",15,115,10,4,0,80,0,155,75,(euc.dash.opt.unit.ampR)?"R":"N",30,115,35); //2
+			if (face[0].bgd) face[0].btn(1,"PWM",15,200,10,1,0,160,0,239,75,(euc.dash.alrt.pwm.hw)?"H":"S",30,200,35); //3
+			else face[0].btn(1,"",15,200,10,1,0,160,0,239,75); //3
 			face[0].btn(1,"EMPTY",15,40,90,1,0,0,80,75,155,euc.dash.opt.bat.low/100,30,40,120); //4
-			face[0].btn(1,"",15,120,90,1,0,80,80,155,155,"",30,120,120); //5
-			face[0].btn(1,"PACK",15,200,90,4,0,160,80,239,155,"S" + euc.dash.opt.bat.pack.toString(10),30,200,120); //6
+			face[0].btn(1,"PACK",15,115,90,4,0,80,80,155,155,"S" + euc.dash.opt.bat.pack.toString(10),30,115,120); //5
+			if (face[0].bgd) face[0].btn(1,"SPIN",15,200,90,1,0,160,80,239,155,euc.dash.alrt.pwm.rotS,30,200,120); //6
+			else face[0].btn(1,"",15,200,90,1,0,160,80,239,155); //6
 			if (face[0].ntid) {
 				clearTimeout(face[0].ntid);face[0].ntid=0;
 				w.gfx.setColor(0,0);
