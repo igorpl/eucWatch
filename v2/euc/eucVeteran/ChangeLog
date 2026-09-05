@@ -1,3 +1,4 @@
+2.15: pedal sensitivity, assist and compensation set and read back
 2.14: speed alarm and speed limit decode and set, CRC32 command frames
 2.13: bus current instead of phase current, cpu temperature, battery temperature status, ride mode from byte 31
 2.12: phase current scale, tenths of an amp not hundredths

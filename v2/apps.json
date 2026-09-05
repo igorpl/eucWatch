@@ -436,14 +436,15 @@
 	{ "id": "dashVeteran",
 		"name": "Veteran Settings",
 		"icon": "../../P8-testing/dashVeteran/icon.png",
-		"version":"1.94.4",
+		"version":"1.94.5",
 		"description": "EUC dashboard, Veteran settings gui files.",
 		"tags": "euc",
 	    "needsFeatures":["V1"],
 		"storage": [
 			{"name":"dashVeteran","url":"../../P8-testing/dashVeteran/dashVeteran.js"},
 			{"name":"dashVeteranOptions","url":"../../P8-testing/dashVeteran/dashVeteranOptions.js"},
-			{"name":"dashVeteranLimits","url":"../../P8-testing/dashVeteran/dashVeteranLimits.js"}
+			{"name":"dashVeteranLimits","url":"../../P8-testing/dashVeteran/dashVeteranLimits.js"},
+			{"name":"dashVeteranModes","url":"../../P8-testing/dashVeteran/dashVeteranModes.js"}
 
 		]
 	},
@@ -879,7 +880,7 @@
    { "id": "eucVeteran",
 		"name": "Veteran module",
 		"icon": "../../v2/euc/eucVeteran/icon.png",
-		"version":"2.1.6",
+		"version":"2.1.7",
 		"description": "EUC module for Veteran Sherman",
 		"tags": "euc",
 		"type": "euc",

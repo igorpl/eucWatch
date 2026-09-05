@@ -294,13 +294,14 @@
 	{ "id": "dashVeteran",
 		"name": "Veteran Settings",
 		"icon": "icon.png",
-		"version":"1.92.5",
+		"version":"1.92.6",
 		"description": "EUC dashboard, Veteran settings gui files.",
 		"tags": "euc",
 		"storage": [
 			{"name":"dashVeteran","url":"dashVeteran.js"},
 			{"name":"dashVeteranOptions","url":"dashVeteranOptions.js"},
-			{"name":"dashVeteranLimits","url":"dashVeteranLimits.js"}
+			{"name":"dashVeteranLimits","url":"dashVeteranLimits.js"},
+			{"name":"dashVeteranModes","url":"dashVeteranModes.js"}
 
 		]
 	}, 

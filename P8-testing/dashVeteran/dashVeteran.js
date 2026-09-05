@@ -30,8 +30,7 @@ face[0] = {
 		this.btn((euc.dash.alrt.spd.hapt.en||euc.dash.alrt.amp.hapt.en||euc.dash.alrt.tmp.hapt.en||euc.dash.alrt.bat.hapt.en),"WATCH",18,185,20,4,1,122,0,239,97,"ALERTS",22,185,55);		
 		let metric={"psi":1,"bar":0.0689475,"kpa":6.89475};
 		this.btn(euc.dash.opt.tpms,(euc.dash.opt.tpms)?euc.dash.opt.tpms:"TPMS",18,60,115,(euc.dash.opt.tpms&&tpms.euc[euc.dash.opt.tpms]&&tpms.euc[euc.dash.opt.tpms].time&&(getTime()|0)-tpms.euc[euc.dash.opt.tpms].time<1800)?(tpms.euc[euc.dash.opt.tpms].alrm)?13:4:1,1,0,100,119,195,(euc.dash.opt.tpms)?(tpms.euc[euc.dash.opt.tpms]&&tpms.euc[euc.dash.opt.tpms].psi)?Math.round(tpms.euc[euc.dash.opt.tpms].psi*metric[tpms.def.metric]).toString(1):"WAIT":"OFF",(euc.dash.opt.tpms)?32:28,60,150); //3				
-		let md={"1":"SOFT","2":"MEDIUM","3":"STRONG"};
-        this.btn(1,"RIDE",25,185,115,12,0,122,100,239,195,md[euc.dash.opt.ride.mode],25,185,155);
+        this.btn(1,"RIDE",25,185,115,12,0,122,100,239,195,this.mdTxt(),25,185,155);
 		this.run=true;
 	},
 	show : function(){
@@ -51,6 +50,14 @@ face[0] = {
    			if (txt2){this.g.setFont("Vector",size2);	
             this.g.drawString(txt2,x2-(this.g.stringWidth(txt2)/2),y2);}
 			this.g.flip();
+    },
+    //1-3 are the classic pedal modes. The wheels that dropped them report the pedal
+    //sensitivity in the same byte as value-100, so 150 means 50%, and tapping the button
+    //opens dashVeteranModes instead of cycling.
+    mdTxt: function(){
+			let md={"1":"SOFT","2":"MEDIUM","3":"STRONG"};
+			let m=euc.dash.opt.ride.mode;
+			return md[m]||((m===undefined)?"--":(100<=m&&m<=200)?(m-100)+"%":m.toString(10));
     },
     ntfy: function(txt1,txt0,size,clr,bt){
             this.g.setColor(0,clr);
@@ -143,8 +150,10 @@ touchHandler[0]=function(e,x,y){
 				if (euc.dash.opt.ride.mode==1) {euc.dash.opt.ride.mode=2;euc.wri("rideMed");}
 				else if (euc.dash.opt.ride.mode==2) {euc.dash.opt.ride.mode=3;euc.wri("rideStrong"); }
 				else if (euc.dash.opt.ride.mode==3) {euc.dash.opt.ride.mode=1;euc.wri("rideSoft");}
-				let md={"1":"SOFT","2":"MEDIUM","3":"STRONG"};
-				face[0].btn(1,"RIDE",25,185,115,12,0,122,100,239,195,md[euc.dash.opt.ride.mode],25,185,155);
+				//no 1-3 modes on this wheel, so the cycle is meaningless and the three
+				//percent settings that replaced them live on their own page
+				else {face.go("dashVeteranModes",0);return;}
+				face[0].btn(1,"RIDE",25,185,115,12,0,122,100,239,195,face[0].mdTxt(),25,185,155);
 				buzzer.nav([30,50,30]);						
 			}else buzzer.nav([30,50,30]);
 		}
@@ -210,8 +219,8 @@ touchHandler[0]=function(e,x,y){
 			if (euc.dash.opt.ride.mode==1) {euc.dash.opt.ride.mode=2;euc.wri("rideMed");}
 			else if (euc.dash.opt.ride.mode==2) {euc.dash.opt.ride.mode=3;euc.wri("rideStrong"); }
 			else if (euc.dash.opt.ride.mode==3) {euc.dash.opt.ride.mode=1;euc.wri("rideSoft");}
-			let md={"1":"SOFT","2":"MEDIUM","3":"STRONG"};
-			face[0].btn(1,"RIDE",25,185,115,12,0,122,100,239,195,md[euc.dash.opt.ride.mode],25,185,155);
+			else {face.go("dashVeteranModes",0);return;}
+			face[0].btn(1,"RIDE",25,185,115,12,0,122,100,239,195,face[0].mdTxt(),25,185,155);
 			buzzer.nav([30,50,30]);	
 		}else buzzer.nav([30,50,30]);
 		break;

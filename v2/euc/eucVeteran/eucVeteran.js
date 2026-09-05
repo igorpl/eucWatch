@@ -3,15 +3,15 @@ E.setFlags({ pretokenise: 1 });
 //Leaperkim settings frame: "L?Ap", total length, payload, CRC32 big endian over the rest.
 //The payload is an image of the wheel's settings block and 0x80 means "leave unchanged",
 //so only the slot being written carries a value. Same CRC as the inbound DC 5A 5C frames.
-euc.temp.lkSet=function(cmd,blk,slot,val){
-	let pay=new Uint8Array(8);
-	pay.fill(0x80);
-	pay[0]=1; pay[1]=blk; pay[slot]=val;
-	let f=new Uint8Array(17);
-	f.set([0x4c,cmd,0x41,0x70,17]);
-	f.set(pay,5);
-	let crc=E.CRC32(new Uint8Array(f.buffer,0,13));
-	f[13]=(crc>>>24)&255; f[14]=(crc>>>16)&255; f[15]=(crc>>>8)&255; f[16]=crc&255;
+//len is the payload length, which has to reach the slot being written
+euc.temp.lkSet=function(cmd,blk,slot,val,len){
+	let n=(len||8)+9;
+	let f=new Uint8Array(n);
+	f.set([0x4c,cmd,0x41,0x70,n]);
+	f.fill(0x80,5,n-4);
+	f[5]=1; f[6]=blk; f[5+slot]=val;
+	let crc=E.CRC32(new Uint8Array(f.buffer,0,n-4));
+	f[n-4]=(crc>>>24)&255; f[n-3]=(crc>>>16)&255; f[n-2]=(crc>>>8)&255; f[n-1]=crc&255;
 	return f;
 };
 euc.cmd=function(no,v){
@@ -33,6 +33,13 @@ euc.cmd=function(no,v){
 		case "alrtSpd2":return euc.temp.lkSet(0x64,0,7,v);
 		//speed limit, slot 7 of the 0x64 block, a different setting from the alarm
 		case "limtSpd": return euc.temp.lkSet(0x64,2,7,v);
+		//the three percent settings the new wheels have in place of the 1-3 pedal modes.
+		//Leaperkim calls them pedal softness, acceleration and deceleration assist, and
+		//accelerometer reduction. The payload has to reach the slot, so these run to 33
+		//bytes, well past the frames anything else here writes.
+		case "pedHard": return euc.temp.lkSet(0x64,2,5,v,6);
+		case "pedAsst": return euc.temp.lkSet(0x64,2,21,v,22);
+		case "pedComp": return euc.temp.lkSet(0x64,2,23,v,24);
 		case "switchPackets": euc.temp.CHANGESTRORPACK=1; return "CHANGESTRORPACK";
 		case "changePage": euc.temp.CHANGESTRORPACK++; return "CHANGESHOWPAGE";
 		case "returnMain": euc.temp.CHANGESTRORPACK=0;return "CHANGESTRORPACK";
@@ -116,6 +123,14 @@ euc.temp.liveParse = function (inc){
   //battery temperature status, offset 36. 111 = every sensor normal, 100/101/110 = one or
   //more high, anything else the Leaperkim app shows as unknown.
   if (37<blen) euc.dash.live.batT=lala.getUint16(36);
+  //settings readback, sub packet 8, the one WheelLog leaves as "new packet, TODO". Only
+  //the three the wheel calls pedal softness, acceleration/deceleration assist and
+  //accelerometer reduction are taken; 0x80 means this firmware does not have the setting.
+  if (sub===8) {
+    if (50<blen) euc.dash.opt.ride.hard=lala.getUint8(50);
+    if (66<blen) euc.dash.opt.ride.asst=lala.getUint8(66);
+    if (68<blen) euc.dash.opt.ride.comp=lala.getUint8(68);
+  }
   //offset 24 is the wheel's speed alarm and 26 its speed limit, both tenths of a km/h.
   //This was stored as trip.avrS, which it is not: it never varies with speed. A limit of
   //200 is the wheel's "off" position; the Leaperkim app can only set 10..120.
@@ -279,6 +294,18 @@ euc.conn=function(mac){
 				}).then(function() {
 					if (euc.tout.busy) {clearTimeout(euc.tout.busy);euc.tout.busy=0;}
 				}).catch(euc.off);
+			}else if (n=="pedHard"||n=="pedAsst"||n=="pedComp") {
+				//15, 31 and 33 bytes. Everything else this watch writes fits inside the 20
+				//byte default MTU, so a rejection here most likely means the link never
+				//negotiated a bigger one. Report it rather than dropping the wheel.
+				euc.temp.wErr=0;
+				c.writeValue(euc.cmd(n,v)).then(function() {
+					if (euc.tout.busy) {clearTimeout(euc.tout.busy);euc.tout.busy=0;}
+				}).catch(function(err) {
+					euc.temp.wErr=1;
+					if (euc.tout.busy) {clearTimeout(euc.tout.busy);euc.tout.busy=0;}
+					if (ew.is.bt===2) console.log("Veteran: setting write failed:",err);
+				});
             }else {
 				let cmd=euc.cmd(n,v);
 				if (!cmd.length) return;
