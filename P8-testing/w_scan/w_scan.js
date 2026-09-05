@@ -2,8 +2,14 @@
 if (!global.scan) {
   scan = {
     mac: [],
+    //stops the radio and the pending result timer. safe to call at any time.
+    stop: function() {
+      if (scan.tid) { clearTimeout(scan.tid);
+        scan.tid = 0; }
+      try { NRF.setScan(); } catch (e) {}
+      ew.is.gIsB = 0;
+    },
     go: function(app, service) {
-      ew.is.gIsB = 1;
       if (app == "repellent") this.filter = [{ serviceData: { "fe95": {} } }];
       else {
         app = "dash";
@@ -23,15 +29,27 @@ if (!global.scan) {
       scan.found = [];
       if (scan.tid) { clearTimeout(scan.tid);
         scan.tid = 0; }
-      NRF.setScan(function(devices) {
-        if (euc.dash.info.get.makr=="Kingsong") {
+      //the radio throws when it is busy (a connect in flight, an other scan).
+      //gIsB must not be raised unless the scan really started, a stuck flag
+      //keeps every later entry to this face in the retry loop below.
+      try {
+        NRF.setScan(function(devices) {
+          if (euc.dash.info.get.makr=="Kingsong") {
 						if (devices.shortName&&devices.shortName.startsWith("KSN")&&!scan.found.includes(devices.id+"|"+devices.shortName) ) scan.found.push(devices.id+"|"+devices.shortName);
 						if (devices.name&&devices.name.startsWith("KS")&&!scan.found.includes(devices.id+"|"+devices.name) )  scan.found.push(devices.id+"|"+devices.name);
-				}else if (!scan.found.includes(devices.id+"|"+devices.name)) scan.found.push(devices.id+"|"+devices.name);
-      }, { filters: this.filter, active: true });
+				  }else if (!scan.found.includes(devices.id+"|"+devices.name)) scan.found.push(devices.id+"|"+devices.name);
+        }, { filters: this.filter, active: true });
+      } catch (e) {
+        print("scan busy", e);
+        ew.is.gIsB = 0;
+        if (face.appCurr == "w_scan") face[0].start = 1;
+        return;
+      }
+      ew.is.gIsB = 1;
       scan.tid = setTimeout(() => {
         scan.tid = 0;
         NRF.setScan();
+        ew.is.gIsB = 0;
         if (scan.found != "" && scan.found != undefined) {
           if (app == "dash") {
             euc.dash.info.get.mac = 0;
@@ -44,10 +62,10 @@ if (!global.scan) {
           scan.mac = scan.found;
         }
         else scan.mac = [];
-        ew.is.gIsB = 0;
-        face[0].start = 1;
         if (face.appCurr != "w_scan") { delete scan.go;
-          delete scan; }
+          delete scan;
+          return; }
+        face[0].start = 1;
       }, 2500);
     }
   };
@@ -59,19 +77,25 @@ face[0] = {
   find: function(service) {
     if (!this.start) return;
     this.start = 0;
-    if (ew.is.gIsB) {
-      //ew.do.setGattState();
-      this.cnt = 1;
-      if (this.loop >= 0) clearInterval(this.loop);
-      this.loop = setInterval(function() {
-        this.cnt++;
-        if (!ew.is.gIsB) scan.go(face.appPrev, service);
-        else if (this.cnt > 4) { print("scan timeout");
-          clearInterval(this.loop);
-          this.loop = -1; return; }
-      }, 1000);
-    }
-    else scan.go(face.appPrev, service);
+    if (this.loop) { clearInterval(this.loop);
+      this.loop = 0; }
+    if (!ew.is.gIsB) { scan.go(face.appPrev, service);
+      return; }
+    //radio busy, wait for it. the face has to be handed to the callback,
+    //a plain function body does not see it as "this".
+    this.cnt = 0;
+    this.loop = setInterval(function(t) {
+      t.cnt++;
+      if (!ew.is.gIsB) { clearInterval(t.loop);
+        t.loop = 0;
+        scan.go(face.appPrev, service);
+      }
+      else if (t.cnt > 4) { print("scan timeout");
+        clearInterval(t.loop);
+        t.loop = 0;
+        ew.is.gIsB = 0;
+        t.start = 1; }
+    }, 1000, this);
   },
   init: function(o) {
     //this.find(o);
@@ -148,13 +172,20 @@ face[0] = {
     }, 500, this);
   },
   tid: -1,
+  loop: 0,
   run: false,
   clear: function() {
     this.run = false;
     if (this.tid >= 0) clearTimeout(this.tid);
-    if (this.loop >= 0) clearInterval(this.loop);
-    if (!ew.is.gIsB && face.appCurr != "w_scan") delete global.scan;
     this.tid = -1;
+    if (this.loop) { clearInterval(this.loop);
+      this.loop = 0; }
+    //this face owns the radio while it lives. nothing else stops the scanner,
+    //so it has to go down here or it keeps running until the watch is rebooted.
+    if (global.scan) { scan.stop();
+      if (face.appCurr != "w_scan" || face.pageCurr != 0) { delete scan.go;
+        delete global.scan; }
+    }
     return true;
   },
   off: function() {
@@ -184,19 +215,20 @@ touchHandler[0] = function(e, x, y) {
     if (!face[0].start || face[0].start == 1) { buzzer.nav(40); return; }
     if (face[0].start == 3) { buzzer.nav([30, 50, 30]);
       face[0].find(face.pageArg); return; }
-    if (36 < y && y <= 85) { this.mac = scan.mac[0].split("|")[0];
-      this.name = (scan.mac[0].split("|")[1] != "undefined") ? scan.mac[0].split("|")[1] : 0; }
-    else if (85 < y && y <= 135) { this.mac = scan.mac[1].split("|")[0];
-      this.name = (scan.mac[1].split("|")[1] != "undefined") ? scan.mac[1].split("|")[1] : 0; }
-    else if (135 < y && y <= 185) { this.mac = scan.mac[2].split("|")[0];
-      this.name = (scan.mac[2].split("|")[1] != "undefined") ? scan.mac[2].split("|")[1] : 0; }
-    else if (185 < y) { this.mac = scan.mac[3].split("|")[0];
-      this.name = (scan.mac[3].split("|")[1] != "undefined") ? scan.mac[3].split("|")[1] : 0; }
+    //a row past the end of the list used to throw on split() and leave the mac
+    //of the previously picked wheel sitting on the handler.
+    this.mac = undefined;
+    this.name = 0;
+    var row = (36 < y && y <= 85) ? 0 : (85 < y && y <= 135) ? 1 : (135 < y && y <= 185) ? 2 : (185 < y) ? 3 : -1;
+    if (0 <= row && scan.mac[row]) { this.mac = scan.mac[row].split("|")[0];
+      this.name = (scan.mac[row].split("|")[1] != "undefined") ? scan.mac[row].split("|")[1] : 0; }
     if (this.mac != undefined) {
       buzzer.nav([30, 50, 30]);
       if (face.appRoot[0] != "repellent") {
         if (this.name) ew.do.fileWrite("dash", "slot" + require("Storage").readJSON("dash.json", 1).slot + "Name", this.name ? E.toString(this.name).replace(/\0/g, '') : "NA");
         //ew.do.fileWrite("dash","slot"+require("Storage").readJSON("dash.json",1).slot+"Mac",this.mac);
+        //free the radio before the connect, tgl clears this face only afterwards
+        scan.stop();
         euc.mac = this.mac;
         euc.tgl();
         return;

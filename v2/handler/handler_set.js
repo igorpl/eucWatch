@@ -12,8 +12,9 @@ ew.is={
 	hidM:undefined, //not user settable.
 	clin:0,//not settable
 };
-ew.do.update.acc=function(){if(!ew.def.dash.accE) { if (ew.def.acc)acc.on(); else acc.off();}};
-ew.do.update.settings=function(){require('Storage').write('ew.json', ew.def);};
+ew.do.update.acc=function(){if (ew.def.acc) acc.on(ew.def.dash.accE?2:1); else acc.off();};
+//ew.def.acc is forced on while a wheel is connected, so save what the user chose
+ew.do.update.settings=function(){let a=ew.def.acc;if (global.euc&&0<=euc.accSave) ew.def.acc=euc.accSave;require('Storage').write('ew.json', ew.def);ew.def.acc=a;};
 ew.do.reset.settings=function() {
 	ew.def = {"off":{"clock":5000},"dash":{"tot":"0","mph":0,"amp":0,"bat":0,"batS":0,"face":0,"accE":0,"clck":0,"clkS":0,"farn":0,"rtr":5},
 	"name":"eucWatch_v2","touchtype":"0","acctype":"0","hr24":1,"prxy":0,"timezone":"0","woe":1,"wob":1,"rfTX":-4,"cli":1,"hid":0,"gb":0,"atc":0,"acc":0,"hidT":"media","bri":2,"buzz":1,"bpp":4,"info":1,"txt":1};

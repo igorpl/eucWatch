@@ -6,6 +6,7 @@ acc={
 	tid:0,
 	tmr:100,
 	mode:0,
+	reg:0, //what is actually armed: 0 nothing, 1 setWatch, 2 setInterval
 	loop:0,
 	chk1:process.env.BOARD=="P8"||process.env.BOARD=="P22"?
 		()=>{ if ( 192 < i2c.readFrom(0x18,1)[0] )  return true;}:
@@ -16,6 +17,10 @@ acc={
 		()=>{ let cor=acc.read(); if (-200<=cor.ax && cor.ay<=500  && 500<cor.az)return true;}
 	,
 	on:function(v){
+		//init() refuses to touch an already armed sensor, so a mode change has to
+		//tear the old one down first. without this mode and reg drift apart and
+		//off() ends up calling the wrong clear.
+		if (ew.tid.acc && this.reg!=((v==2)?2:1)) this.off();
 		i2c.writeTo(0x18,0x20,0x4f); //CTRL_REG1 20h ODR3 ODR2 ODR1 ODR0 LPen Zen Yen Xen , 50hz, lpen1. zyx
 		i2c.writeTo(0x18,0x21,0x00); //highpass filter disabled
 		i2c.writeTo(0x18,0x22,0x40); //ia1 interrupt to INT1
@@ -43,10 +48,14 @@ acc={
 	},
 	off:function(){
 		if (ew.tid.acc){
-			if (this.mode==2) {
-				clearInterval(ew.tid.acc);
-			}else clearWatch(ew.tid.acc);
+			//reg says what is really armed. mode is only what was asked for, and
+			//clearing an interval as a watch throws and leaves it running for good.
+			try {
+				if (this.reg==2) clearInterval(ew.tid.acc);
+				else clearWatch(ew.tid.acc);
+			} catch (e) { print("acc off", e); }
 			ew.tid.acc=0;
+			this.reg=0;
 		}
 		i2c.writeTo(0x18,0x20,0x07); //Clear LPen-Enable all axes-Power down
 		i2c.writeTo(0x18,0x26);
@@ -77,6 +86,7 @@ acc={
 					}
 				}
 			},this.tmr);
+			this.reg=2;
 			return true;
 		}else  {	//watch mode
 			i2c.writeTo(0x18,0x32,20); //int1_ths-threshold = 250 milli g's
@@ -97,6 +107,7 @@ acc={
 					}
 				}
 			},ew.pin.acc.INT,{repeat:true,edge:"rising",debounce:50});
+			this.reg=1;
 			return true;
 		} 
 	},

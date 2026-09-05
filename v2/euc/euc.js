@@ -4,6 +4,7 @@ global.euc = {
 	ntid:{"horn":0},
 	state: "OFF",
 	proxy: 0,
+	accSave: -1, //ew.def.acc from before the wheel was connected, -1 = nothing saved
 	log: {
 		trip: [0, 0, 0], //hour/day/month
 		ampL: [],
@@ -32,6 +33,8 @@ global.euc = {
 				ew.do.fileWrite("logDaySlot" + ew.def.dash.slot, Date().getHours(), (euc.dash.trip.totl - this.log.trip[0]) + ((ew.do.fileRead("logDaySlot" + ew.def.dash.slot, Date().getHours())) ? ew.do.fileRead("logDaySlot" + ew.def.dash.slot, Date().getHours()) : 0));
 			this.log.trip[0] = 0;
 			ew.def.dash.accE = 0;
+			if (0 <= this.accSave) { ew.def.acc = this.accSave;
+				this.accSave = -1; }
 			this.mac = 0;
 			this.state = "OFF";
 			acc.off();
@@ -48,7 +51,7 @@ global.euc = {
 				euc.updateDash(require("Storage").readJSON("dash.json", 1).slot);
 				this.log.trip = [0, 0, 0];
 				//if (face.appCurr=="dashOff") face.go('dashOff',0);
-				if (ew.def.acc) acc.on(1);
+				ew.do.update.acc();
 
 			}, 1000);
 
@@ -72,11 +75,13 @@ global.euc = {
 				}
 				if (euc.dash.info.get.makr !== "Kingsong" || euc.dash.info.get.makr !== "inmotionV11") euc.dash.trip.topS = 0;
 				this.conn(this.mac);
+				//the sensor runs in euc mode for the whole ride. accSave keeps what the user
+				//had, so a toggle made while riding does not outlive the connection.
+				this.accSave = ew.def.acc;
+				ew.def.acc = 1;
+				ew.def.dash.accE = 1;
 				acc.off();
-				if (ew.def.acc) {
-					setTimeout(() => { ew.def.dash.accE = 1;
-						acc.on(2); }, 1000);
-				}
+				setTimeout(() => { ew.do.update.acc(); }, 1000);
 				if (euc.dash.opt.tpms && global.tpms && !tpms.def.int) { tpms.euc = {};
 					setTimeout(() => { tpms.scan(); }, 10000); } //tpms
 				face.go(ew.is.dash[ew.def.dash.face], 0);

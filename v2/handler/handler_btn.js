@@ -27,7 +27,7 @@ function btn1(s){
 	if (face.offid) {clearTimeout(face.offid);face.offid=0;}
 	if (s.state) { 
 		this.press=true;
-		if (global.euc&&euc.state=="READY"&&2<=euc.dash.live.spd&&euc.dash.opt.horn.en) {euc.wri("hornOn"); if (ew.def.acc) return;}
+		if (global.euc&&euc.state=="READY"&&2<=euc.dash.live.spd&&euc.dash.opt.horn.en) {euc.wri("hornOn");return;}
 		this.t1=setTimeout(() => {
 			this.t1=0;
 			if (global.euc) {
@@ -53,7 +53,7 @@ function btn1(s){
 			else face.go("clock",0); 
 		}
 		
-	}else if (this.press&&global.euc&&euc.state==="READY"&&euc.is.horn&&euc.dash.opt.horn.en) {euc.wri("hornOff"); if (ew.def.acc) return;
+	}else if (this.press&&global.euc&&euc.state==="READY"&&euc.is.horn&&euc.dash.opt.horn.en) {euc.wri("hornOff");return;
 	}else face.off();
 }
 ew.tid.btn1=setWatch(btn1,BTN1, {repeat:true, debounce:50,edge:0});

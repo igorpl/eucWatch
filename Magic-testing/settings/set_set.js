@@ -14,7 +14,7 @@ UIc.start(1,0);
 //UI.btn.img("main","_2x3",2,"themes","FACE",15,12);
 UI.btn.img("main","_2x3",3,"bri",ew.def.bri,15,1,1);
 UI.btn.img("main","_2x3",4,"findPhone","FIND",ew.is.fmp?15:3,ew.is.fmp?13:1);
-UI.btn.img("main","_2x3",5,"wakeScreen","WAKE",euc.state=="READY"?11:ew.def.acc?15:3,euc.state=="READY"?8:ew.def.acc?4:1);
+UI.btn.img("main","_2x3",5,"wakeScreen","WAKE",ew.def.acc?15:3,ew.def.acc?4:1);
 UI.btn.img("main","_2x3",6,ew.def.buzz?"buzzOn":"buzzOff","BUZZ",ew.def.buzz?15:3,ew.def.buzz?4:1);
 UIc.end();
 //
@@ -52,7 +52,6 @@ UIc.main._2x3=(i)=>{
 			buzzer.nav(buzzer.buzz.na);
 		}
 	}else if (i==5){
-		if (euc.state=="READY") {buzzer.nav(buzzer.buzz.na); UI.btn.ntfy(1,0,0,"_bar",6,"AUTO ENABLED","FOR EUC",0,15); w.gfx.flip(); return;} 
 		buzzer.nav(buzzer.buzz.ok);
 		ew.def.acc=1-ew.def.acc;
 		if (ew.def.info) UI.btn.ntfy(1,0,0,"_bar",6,"TURN TO WAKE",ew.def.acc?"ENABLED":"DISABED",0,15);
