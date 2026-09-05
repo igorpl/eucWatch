@@ -228,56 +228,84 @@ whole block on `mVer >= 5`. Any real work here needs a Lynx-class capture.
 
 This is a feature gap, not a bug, and it needs screens as well as a decoder.
 
-## 7. Smaller mismatches — OPEN
+## 7. Smaller mismatches — PLANNED, deferred pending testing
 
-- **Ride mode is byte 31, not the u16 at 30.** LeaperKim builds the version code from
-  bytes {30, 28, 29} and reads the ride mode from byte 31 alone. `eucVeteran.js:79` uses
-  `getUint16(30)`, which folds byte 30 in; it works only while that byte is zero.
-- **Offset 36/37 is `batteryTempMode`**, not padding — that is the constant 111 in the
-  capture.
-- **Frame sanity checks.** WheelLog's unpacker rejects a frame when byte 22 is non-zero,
-  byte 23 has any of bits 1-7 set, or byte 30 is not 0 or 7 (`veteranUnpacker.addChar`).
-  `euc.temp.inpk` trusts the header and length alone. Low priority given the CRC, but it
-  is free protection on pre-3012 firmware where the CRC is skipped.
-- **CRC gating.** `checksum()` (`eucVeteran.js:24-25`) decides whether to verify by
-  reading the version at offset 28 — a field inside the very frame whose integrity is
-  unverified. WheelLog instead latches `usingCrc` the first time a CRC validates, and
-  also treats `len > 38` as CRC-bearing. The latch is the sturdier rule.
-- **Negative handling.** WheelLog has a 3-way straight/absolute/reverse
-  (`gotwayNegative`) applied to **both** speed and phase current. eucWatch has
-  `unit.ampR` for current only and always `Math.abs`es speed (`:52`), so a rider going
-  backwards reads as forwards.
+- **Ride mode is byte 31, not the u16 at 30.** FIXED.
+- **Offset 36/37 is `batteryTempMode`**, not padding. FIXED, it drives the battery
+  temperature warning.
+Still open, with a worked plan. Checked first against 124 real frames, the 116 in
+`info.txt` (FW 3012) and 8 pasted from a live FW 3015 wheel:
+
+| | FW 3012 | FW 3015 |
+| --- | --- | --- |
+| frames | 116 | 8 |
+| `byte22 != 0` | 0 | 0 |
+| `byte23 & 0xFE` | 0 | 0 |
+| `byte30` not 0 or 7 | 0 | 0 |
+| `len <= 38` | 0 | 0 |
+| CRC mismatches | 0 | 0 |
+
+So WheelLog's three byte rules never fire on real traffic and are safe to add, and
+**`len > 38` is true for every frame on both firmwares**, which means the CRC is always
+verifiable and the current version gate is dead code on any wheel seen so far.
+
+- **CRC gating.** `checksum()` decides whether to verify by reading the version at offset
+  28 — a field inside the very frame whose integrity is in question, so a corrupt frame
+  whose bytes 28/29 land below 3012 skips verification altogether. Replace with
+  WheelLog's rule: verify when `38 < len`, and latch a flag on the first success so every
+  later frame must verify too, resetting it on connect.
+
+  Guard the one risk: if pre-3012 firmware exists that sends long frames with no CRC this
+  would reject everything and leave a dead dash. WheelLog ships this exact rule so their
+  old frames must be short, but that is not verifiable here. So if the CRC has never once
+  succeeded and fails repeatedly, stop enforcing and log it; once a single frame verifies,
+  latch on permanently.
+
+- **Frame sanity checks.** Byte 22 non-zero, byte 23 with any of bits 1-7 set, byte 30 not
+  0 or 7. Worth adding, but **not the way WheelLog does it**: where the CRC runs these are
+  worthless, since CRC32 catches everything three byte comparisons would and much more.
+  They only earn their keep where the CRC is skipped. So apply them **only when the CRC is
+  not being enforced** — then they can never reject a frame the CRC would have passed, and
+  they cover the one otherwise unprotected gap.
+
+- **Negative speed handling — WON'T DO.** WheelLog has a 3-way straight/absolute/reverse
+  applied to both speed and phase current; we always `Math.abs` the speed, so a rider
+  going backwards reads as forwards. **The manufacturer's own app also takes the absolute
+  value**, so the current behaviour matches the reference implementation. Changing it means
+  a new user-facing setting for a case that only shows up riding backwards. Left as is on
+  purpose.
+
+Frame reassembly was checked at the same time and needs nothing. It has no staleness timer
+like WheelLog's 100ms unpacker reset, but it self-heals: a lost tail leaves a partial
+buffer that the next `DC 5A 5C` header discards.
 
 ## Status
 
-Nothing in this document has been fixed. A cosmetic fix for #4 (fallback label plus a
-"SET IN THE APP" notify so the button is never blank) was drafted on 2026-09-05 and
-discarded — it does not add the settings, and the real work is blocked on protocol data.
+Confirmed on a Sherman S, FW 3015: #1 the speed alarm decode and its write, #5 the board
+and cpu temperatures, the bus current fix, and the charging current, which read -1A on a
+nearly full charge. The battery temperature warning has only ever seen 111, normal, so the
+decode is confirmed but the warning path itself has not fired.
 
-Ready to do without new hardware data:
+Written but never sent to a wheel:
 
-- #1 offset 24, and decoding 26 alongside it.
-- #2 sleep timer, charging status, pitch angle.
-- #3 `mVer` + model name table + automatic `bat.pack`. This one unblocks the others and
-  fixes the hardcoded "SHERMAN" title.
-- #7 CRC latch and the frame sanity checks.
+- the speed **limit** write. The alarm at 200 was tried and had no effect, so the limit may
+  behave the same way; it needs a wheel that implements the setting at all.
+- the three percent settings, which need a Sherman L or similar. Their frames are 31 and 33
+  bytes, the first writes in this project to exceed the 20 byte default MTU, so
+  `WRITE REJECTED` on that page means the link would not carry them rather than the wheel
+  refusing the value.
+- the whole percent settings page, including the sub packet 8 readback, since no wheel here
+  sends sub packet 8.
 
-Decoded from EUC World (`VeteranProtocol.md`), needs confirming against a real wheel
-before anything is written to one:
+Open, in rough order of value:
 
-- #4 the three percent settings — read side and write side both.
-
-Also decoded, same source:
-
-- #5 the CPU temperature — offset 61, x0.01.
-
-Still blocked on a capture from a new wheel:
-
-- #1's open question about what offset 26 really contains.
-
-Blocked on a Lynx-class wheel:
-
-- #6 the smart BMS, including the third temperature.
+- #3 model naming table — deferred on purpose, see above
+- #7 CRC latch and sanity checks — planned above, deferred pending testing
+- #2 sleep timer and pitch angle — declined, not wanted
+- #6 smart BMS — needs a Lynx class wheel and its own screen
+- the third temperature at offset 59 is shown but still unidentified
+- `dash_simple` and `dash_pwm` show the temperatures; the limit tile is `dash_digital`
+  only, and Magic-testing has no dual temperature layout at all
 
 ## Getting the data
 
