@@ -98,6 +98,12 @@ face[0] = {
 	fldV: function() {
 		return (ew.def.dash.clkS == 2) ? euc.dash.live.tmpM : (ew.def.dash.clkS == 3) ? euc.dash.live.tmpA : euc.dash.live.tmp;
 	},
+	//only Veteran has more than one temperature to choose from, and the third sensor has no
+	//known name, so it gets no label
+	fldN: function() {
+		if (euc.dash.info.get.makr != "Veteran") return "";
+		return (ew.def.dash.clkS == 1) ? "BRD" : (ew.def.dash.clkS == 2) ? "CPU" : "";
+	},
 	fldNx: function() {
 		let c = ew.def.dash.clkS || 0;
 		//skip whichever the wheel does not report rather than parking on an empty field
@@ -114,17 +120,25 @@ face[0] = {
 		this.g.setColor(0, this.tmpC[euc.dash.alrt.tmp.cc]);
 		this.g.fillRect(0, 0, 119, 50);
 		this.g.setColor(1, 15);
-		this.g.setFontVector(50);
+		//a little smaller than it was, to leave the right hand end clear for the label
+		this.g.setFontVector(42);
 		let temp = ((ew.def.dash.farn) ? v * 1.8 + 32 : v).toFixed(1).toString().split(".");
 		let size = 5 + this.g.stringWidth(temp[0]);
 		this.g.drawString(temp[0], 5, 3);
 		if (temp[0] < 100) {
-			this.g.setFontVector(35);
+			this.g.setFontVector(28);
 			this.g.drawString("." + temp[1], size, 17);
 			size = size + this.g.stringWidth(temp[1]);
 		}
 		this.g.setFontVector(16);
 		this.g.drawString((ew.def.dash.farn) ? "°F" : "°C", 3 + size, 5);
+		//the bottom right corner is clear of the number, the decimal and the degree mark at
+		//every width, so the label fits without shrinking any of them
+		let nm = this.fldN();
+		if (nm) {
+			this.g.setFontVector(11);
+			this.g.drawString(nm, 118 - this.g.stringWidth(nm), 35);
+		}
 		this.g.flip();
 	},
 	clkf: function() {

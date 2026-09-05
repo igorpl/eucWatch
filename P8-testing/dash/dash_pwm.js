@@ -116,6 +116,12 @@ face[0] = {
   fldV: function(){
     return (ew.def.dash.clkS==2)?euc.dash.live.tmpM:(ew.def.dash.clkS==3)?euc.dash.live.tmpA:euc.dash.live.tmp;
   },
+  //only Veteran has more than one temperature to choose from, and the third sensor has no
+  //known name, so it gets no label
+  fldN: function(){
+    if (euc.dash.info.get.makr!="Veteran") return "";
+    return (ew.def.dash.clkS==1)?"BRD":(ew.def.dash.clkS==2)?"CPU":"";
+  },
   fldNx: function(){
     let c=ew.def.dash.clkS||0;
     //skip whichever the wheel does not report rather than parking on an empty field
@@ -154,6 +160,12 @@ face[0] = {
     }
     this.g.setFontVector(12);
     this.g.drawString((ew.def.dash.farn)?"°F":"°C",3+size,205);
+    //bottom right corner, clear of the number, the decimal and the degree mark
+    let nm=this.fldN();
+    if (nm) {
+      this.g.setFontVector(11);
+      this.g.drawString(nm,118-this.g.stringWidth(nm),225);
+    }
     this.g.flip();
   },
   batf: function(){

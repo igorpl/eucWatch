@@ -1,3 +1,4 @@
+1.92.7: BRD and CPU labels on the simple and pwm temperature fields
 1.92.6: simple and pwm faces cycle time, board, cpu and the third temperature
 1.92.5: Veteran board/cpu temperatures, battery temperature warning, alert/limit tile
 1.80: rework
