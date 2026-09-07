@@ -247,6 +247,9 @@ touchHandler[0]=function(e,x,y){
 				ew.do.fileWrite("dash", "slot"+ew.do.fileRead("dash","slot")+"Mac"  );
                 ew.do.fileWrite("dash","slot"+ew.do.fileRead("dash","slot")+"Maker");
                 ew.do.fileWrite("dash","slot"+ew.do.fileRead("dash","slot")+"Name");
+				//the model banner goes with the wheel. left behind, it was still on the tile
+				//after the next wheel took the slot.
+				ew.do.fileWrite("dash","slot"+ew.do.fileRead("dash","slot")+"Model");
 				require("Storage").erase('logDaySlot'+ew.do.fileRead("dash","slot")+'.json');
 				require("Storage").erase('logWeekSlot'+ew.do.fileRead("dash","slot")+'.json');
 				require("Storage").erase('logYearSlot'+ew.do.fileRead("dash","slot")+'.json');

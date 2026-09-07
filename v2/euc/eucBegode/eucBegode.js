@@ -218,8 +218,14 @@ euc.temp.main=function(event){
 			console.log("model fetch responce:",part);
 			euc.dash.info.get.modl = s.slice(5).trim();
 			if (euc.dash.info.get.modl=="Barton") euc.dash.info.get.modl="RecioWheel";
-			if (!ew.do.fileRead("dash","slot"+ew.do.fileRead("dash","slot")+"Model"))
-				ew.do.fileWrite("dash","slot"+ew.do.fileRead("dash","slot")+"Model",euc.dash.info.get.modl);
+			//stored whenever it differs, as eucInmotionV2 does. the old test only wrote into
+			//an empty slot, so a slot kept the first model it ever saw and a wheel swapped
+			//into it still showed the previous one's name in the garage. comparing rather
+			//than always writing keeps the retries, which can land more than one banner per
+			//connect, from rewriting dash.json in flash each time.
+			let sl="slot"+ew.do.fileRead("dash","slot")+"Model";
+			if (ew.do.fileRead("dash",sl)!=euc.dash.info.get.modl)
+				ew.do.fileWrite("dash",sl,euc.dash.info.get.modl);
 			//no per model table: pack, empty cell and free spin speed are set in dash options
 		} else if (euc.temp.firm(s)) { //fetchFirmware
 			euc.dash.info.get.firm = s.slice(2).trim();

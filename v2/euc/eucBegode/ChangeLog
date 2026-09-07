@@ -1,3 +1,4 @@
+1.87: the model banner is written on every fetch, not only into an empty slot
 1.86: hot path rework, the notification handler no longer allocates per chunk
 1.85: drop the unused pwmLimit and fetchGreet commands
 1.84: phase current scale, Alexovik (BF) firmware frames, firmware/model fetch retries, banner matched on the whole chunk
