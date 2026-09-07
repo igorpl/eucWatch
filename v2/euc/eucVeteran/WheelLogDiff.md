@@ -283,8 +283,12 @@ buffer that the next `DC 5A 5C` header discards.
 
 Confirmed on a Sherman S, FW 3015: #1 the speed alarm decode and its write, #5 the board
 and cpu temperatures, the bus current fix, and the charging current, which read -1A on a
-nearly full charge. The battery temperature warning has only ever seen 111, normal, so the
-decode is confirmed but the warning path itself has not fired.
+nearly full charge. It only rides in sub packets 0 and 4, one frame in four, so it is
+latched until the charging flag at byte 23 clears; without that the field alternated
+between the charge rate and the zero bus current of a parked wheel.
+
+The battery temperature warning has only ever seen 111, normal, so the decode is confirmed
+but the warning path itself has not fired.
 
 Written but never sent to a wheel:
 

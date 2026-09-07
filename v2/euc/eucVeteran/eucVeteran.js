@@ -103,8 +103,13 @@ euc.temp.liveParse = function (inc){
   //sign convention differs by firmware version and unit.ampR already flips it here.
   euc.dash.live.phas=lala.getInt16(16)/10;
   euc.dash.live.amp=euc.dash.live.phas*pwmRaw/10000;
-  //on the charger the wheel reports the charging current instead, negative, offset 63
-  if (chrg && (sub===0||sub===4) && 64<blen && lala.getInt16(63)<0) euc.dash.live.amp=lala.getInt16(63)/10;
+  //on the charger the wheel reports the charging current instead, negative, offset 63.
+  //Only sub packets 0 and 4 carry it, one frame in four, so it has to be latched: on the
+  //six frames in between the wheel is parked, phase and pwm are both zero, so the field
+  //would fall back to 0A and read 0,0,0,-4,0,0,0,-4 rather than a steady charge rate.
+  if (!chrg) euc.temp.chgA=0;
+  else if ((sub===0||sub===4) && 64<blen) euc.temp.chgA=(lala.getInt16(63)<0)?lala.getInt16(63)/10:0;
+  if (euc.temp.chgA) euc.dash.live.amp=euc.temp.chgA;
   if (euc.dash.opt.unit.ampR) euc.dash.live.amp=-euc.dash.live.amp;
   euc.log.ampL.unshift(euc.dash.live.amp);
   if (20<euc.log.ampL.length) euc.log.ampL.pop();
@@ -193,6 +198,7 @@ euc.temp.inpk = function(event) {
 euc.wri=function(i) {if (ew.def.cli) console.log("not connected yet"); if (i=="end") euc.off(); return;};
 euc.conn=function(mac){
 	euc.dash.trip.pwm=0;
+	euc.temp.chgA=0;
 	//check
 	if ( euc.gatt!="undefined") {
 		if (ew.def.cli) print("ble allready connected");
