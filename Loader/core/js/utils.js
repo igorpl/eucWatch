@@ -231,3 +231,25 @@ function debounce(actualFunction, delayInMs) {
     timeout = setTimeout(later, delayInMs);
   };
 }
+
+/* Resolve a "a/b/../c" style path so it can be used as a base for
+relative links (the browser does this for URLs, marked does not) */
+function normalisePath(path) {
+  let parts = [];
+  path.split("/").forEach(part => {
+    if (part == "..") parts.pop();
+    else if (part != ".") parts.push(part);
+  });
+  return parts.join("/");
+}
+
+/* Where an app's source files actually live, with a trailing slash.
+Urls in apps.json are relative to `${APP_SOURCECODE_DEV}/${app.id}/`, but
+several apps point them at a shared folder ("../../v2/euc/eucVeteran/x.js")
+so the app id is not always the folder name - work it out from the files. */
+function getAppPath(app) {
+  let base = `${APP_SOURCECODE_DEV}/${app.id}/`;
+  let url = app.icon || (app.storage && app.storage[0] && app.storage[0].url);
+  if (!url) return base;
+  return normalisePath(base + url.substr(0, url.lastIndexOf("/") + 1));
+}

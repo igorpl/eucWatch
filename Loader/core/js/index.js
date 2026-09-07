@@ -52,13 +52,13 @@ function showChangeLog(appid) {
   function show(contents) {
     showPrompt(app.name+" Change Log",contents,{ok:true}).catch(()=>{});
   }
-  httpGet(`${APP_SOURCECODE_DEV}/${appid}/ChangeLog`).
+  httpGet(getAppPath(app)+"ChangeLog").
 //  httpGet(`apps/${appid}/ChangeLog`).
     then(show).catch(()=>show("No Change Log available"));
 }
 function showReadme(appid) {
   let app = appNameToApp(appid);
-  let appPath = `${APP_SOURCECODE_DEV}/${appid}/`;
+  let appPath = getAppPath(app);
 //  let appPath = `apps/${appid}/`;
   let markedOptions = { baseUrl : appPath };
   function show(contents) {
@@ -68,7 +68,7 @@ function showReadme(appid) {
   httpGet(appPath+app.readme).then(show).catch(()=>show("Failed to load README."));
 }
 function getAppDescription(app) {
-  let appPath = `${APP_SOURCECODE_DEV}/${app.id}/`;
+  let appPath = getAppPath(app);
   //console.log("ll",APP_SOURCECODE_DEV);
 //  let appPath = `apps/${app.id}/`;
   let markedOptions = { baseUrl : appPath };
