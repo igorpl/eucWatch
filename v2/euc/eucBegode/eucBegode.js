@@ -170,27 +170,52 @@ euc.temp.extd= function(event) {
 		euc.temp.line = fragment.slice(lineEnd + 1);
 	}
 };
+//frame assembly scratch. one 24 byte buffer and one DataView over it for the whole
+//session: the notification handler runs for every 20 byte chunk the wheel sends, and a
+//smart bms wheel sends several times what a stock one does - frame 1 once per battery
+//group and the cell blocks in frames 2, 3, 5 and 6 on top of the 0/4/7 the dash reads.
+//The old handler allocated on every one of those chunks and the garbage collector, which
+//stops the watch while it sweeps, is what made the ui crawl on an Xway and not on the
+//older wheels. Nothing below allocates per chunk at all.
+euc.temp.buf=new Uint8Array(24);
+euc.temp.dv=new DataView(euc.temp.buf.buffer);
+euc.temp.len=0;	//bytes held, 25 = this frame overran 24 and is void
+euc.temp.cnt=0;	//chunks seen, for euc.dbg 2
+euc.temp.add=function(part,from,to){
+	let l=euc.temp.len;
+	if (24<l) return;
+	if (24<l+to-from) { euc.temp.len=25; return; }
+	let b=euc.temp.buf;
+	while (from<to) b[l++]=part[from++];
+	euc.temp.len=l;
+};
 euc.temp.main=function(event){
-	if (ew.is.bt==5) 	euc.proxy.w(event.target.value.buffer);
-	if (euc.dbg)  console.log("input",event.target.value.buffer);
-	//gather packet
-	let part=JSON.parse(JSON.stringify(event.target.value.buffer));
-	let startP = part.findIndex((el, idx, arr) => {return arr[idx] == 85 && arr[idx + 1] == 170;});
-	let endP = part.findIndex((el, idx, arr) => {return arr[idx] == 90 && arr[idx + 1] == 90 && arr[idx + 2] == 90 && arr[idx + 3] == 90;});
+	let part=event.target.value.buffer;
+	if (ew.is.bt==5) 	euc.proxy.w(part);
+	//level 1 prints every chunk, which is unusable at the rate a smart bms wheel pushes
+	//them. level 2 only counts, so euc.temp.cnt read off the console a second apart gives
+	//the chunk rate the wheel is really producing.
+	if (euc.dbg==2) euc.temp.cnt++;
+	else if (euc.dbg)  console.log("input",part);
+	//gather packet. the buffer is indexable as it arrives, the way eucKingsong and
+	//eucVeteran already read theirs, so the markers are found in place. The old scan
+	//copied the chunk into a javascript array with JSON.parse(JSON.stringify(...)) and
+	//then ran two findIndex passes with an arrow function per byte over it. Espruino
+	//arrays are linked lists, so every arr[idx+3] walked the list from the head.
+	let n=part.length, startP=-1, endP=-1;
+	for (let i=0;i<n;i++) {
+		let v=part[i];
+		if (v==85) { if (startP<0 && part[i+1]==170) startP=i; }
+		else if (v==90 && endP<0 && part[i+1]==90 && part[i+2]==90 && part[i+3]==90) endP=i;
+		if (0<=startP && 0<=endP) break;
+	}
 	//format packet
-	if (startP!=-1) {
-		if (endP!=-1)
-			euc.temp.type(new DataView(E.toUint8Array(euc.temp.last,part.slice(0,endP+4)).buffer));
-		euc.temp.last=part.slice(startP,part.length);
-	} else if (endP!=-1) {
-		euc.temp.type(new DataView(E.toUint8Array(euc.temp.last,part.slice(0,endP+4)).buffer));
-		euc.temp.last=[];
-	} else { // model/firm banner
+	if (startP==-1 && endP==-1) { // model/firm banner
 		//matched on the trimmed chunk, as WheelLog does. the old test read a word at
 		//offset 0, so a reply with any leading byte was thrown away for the whole ride.
-		let s = E.toString(event.target.value.buffer).trim();
+		let s = E.toString(part).trim();
 		if (s.slice(0,4)=="NAME") { //fetchModel
-			console.log("model fetch responce:",event.target.value.buffer);
+			console.log("model fetch responce:",part);
 			euc.dash.info.get.modl = s.slice(5).trim();
 			if (euc.dash.info.get.modl=="Barton") euc.dash.info.get.modl="RecioWheel";
 			if (!ew.do.fileRead("dash","slot"+ew.do.fileRead("dash","slot")+"Model"))
@@ -199,19 +224,32 @@ euc.temp.main=function(event){
 		} else if (euc.temp.firm(s)) { //fetchFirmware
 			euc.dash.info.get.firm = s.slice(2).trim();
 		}
+		return;
 	}
+	if (endP!=-1) {
+		euc.temp.add(part,0,endP+4);
+		if (euc.temp.len==24) euc.temp.type();
+		euc.temp.len=0;
+	}
+	//a start marker voids whatever is still pending, which is what replacing euc.temp.last
+	//used to do here.
+	if (startP!=-1) { euc.temp.len=0; euc.temp.add(part,startP,n); }
 };
 
-euc.temp.type=function(data){
-	if (data.byteLength == 24 && data.getInt16(0) == 0x55AA ){
-		euc.is.alert=0;
-		if (data.buffer[18]==0)	euc.temp.pck0(data);
-		else if (data.buffer[18]==4) euc.temp.pck4(data);
-		else if (data.buffer[18]==1)	euc.temp.pck1(data);	//master
-		else if (data.buffer[18]==7)	euc.temp.pck7(data);	//extended, hardware pwm
-		//haptic
-		euc.temp.hapt();
-	}
+euc.temp.type=function(){
+	let b=euc.temp.buf;
+	if (b[0]!=85 || b[1]!=170) return;
+	//only the four frames the dash reads go any further. the cell block and bms group
+	//frames a smart bms wheel adds cost one compare each instead of a decode.
+	let t=b[18];
+	if (t!=0 && t!=4 && t!=1 && t!=7) return;
+	euc.is.alert=0;
+	if (t==0) euc.temp.pck0(euc.temp.dv);
+	else if (t==4) euc.temp.pck4(euc.temp.dv);
+	else if (t==1) euc.temp.pck1(euc.temp.dv);	//master
+	else euc.temp.pck7(euc.temp.dv);	//extended, hardware pwm
+	//haptic
+	euc.temp.hapt();
 };
 euc.temp.pck0=function(data) {
 	//volt-battery
@@ -423,7 +461,7 @@ euc.conn=function(mac){
 	  return s.getCharacteristic(0xffe1);
 	//read
 	}).then(function(c) {
-		euc.temp.last= [];
+		euc.temp.len=0;
 		c.on('characteristicvaluechanged',  euc.temp.read);
 		euc.gatt.device.on('gattserverdisconnected', euc.off);
 		return  c;

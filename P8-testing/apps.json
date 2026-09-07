@@ -440,7 +440,7 @@
    { "id": "eucBegode",
 		"name": "Begode module",
 		"icon": "../../v2/euc/eucBegode/icon.png",
-		"version":"1.92.6",
+		"version":"1.92.7",
 		"description": "EUC module for Begode (Gotway)",
 		"tags": "euc",
 		"type": "euc",
