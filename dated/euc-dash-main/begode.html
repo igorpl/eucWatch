@@ -29,10 +29,10 @@
               </div>
             </div>
             <div class="mb-2 row">
-              <label class="col-lg-5 col-form-label" for="wheel-code-name">Model code:</label>
+              <label class="col-lg-5 col-form-label" for="firmware">Firmware:</label>
               <div class="col-lg-7">
-                <input class="form-control" id="wheel-code-name" type="text" value="" disabled readonly>
-                <small class="form-text text-muted">Unique identifier (not a version)</small>
+                <input class="form-control" id="firmware" type="text" value="" disabled readonly>
+                <small class="form-text text-muted">GW stock, JN ExtremeBull, CF Freestyl3r, BF SmirnoV</small>
               </div>
             </div>
             <div class="mb-2 row">
@@ -77,6 +77,20 @@
                 </div>
               </div>
               <div class="mb-2 row">
+                <label class="col-lg-5 col-form-label" for="motor-temp">Motor temperature:</label>
+                <div class="col-lg-7">
+                  <input class="form-control" id="motor-temp" type="text" value="" disabled readonly>
+                  <small class="form-text text-muted">main board firmware after 09.2024 only</small>
+                </div>
+              </div>
+              <div class="mb-2 row">
+                <label class="col-lg-5 col-form-label" for="pwm">PWM:</label>
+                <div class="col-lg-7">
+                  <input class="form-control" id="pwm" type="text" value="" disabled readonly>
+                  <small class="form-text text-muted">reported by the wheel, stock firmware sends none</small>
+                </div>
+              </div>
+              <div class="mb-2 row">
                 <label class="col-lg-5 col-form-label" for="trip-distance">Trip distance:</label>
                 <div class="col-lg-7">
                   <input class="form-control" id="trip-distance" type="text" value="" disabled readonly>
@@ -107,11 +121,11 @@
                   <label class="col-lg-5 col-form-label" for="speed-alert-mode">Speed alert mode:</label>
                   <div class="col-lg-7">
                     <div class="btn-group" role="group">
-                      <input type="radio" class="btn-check" name="speed-alerts" id="speed-alert-0" onclick="sendCommand('alertsOne')">
-                      <label class="btn btn-outline-primary" for="speed-alert-0">1</label>
+                      <input type="radio" class="btn-check" name="speed-alerts" id="speed-alert-0" onclick="sendCommand('alertsBoth')">
+                      <label class="btn btn-outline-primary" for="speed-alert-0">1 &amp; 2</label>
 
-                      <input type="radio" class="btn-check" name="speed-alerts" id="speed-alert-1" onclick="sendCommand('alertsTwo')">
-                      <label class="btn btn-outline-primary" for="speed-alert-1">2</label>
+                      <input type="radio" class="btn-check" name="speed-alerts" id="speed-alert-1" onclick="sendCommand('alertsOne')">
+                      <label class="btn btn-outline-primary" for="speed-alert-1">2 only</label>
 
                       <input type="radio" class="btn-check" name="speed-alerts" id="speed-alert-2" onclick="sendCommand('alertsOff')">
                       <label class="btn btn-outline-primary" for="speed-alert-2">Off</label>
@@ -137,18 +151,31 @@
                   </div>
                 </div>
                 <div class="mb-2 row">
-                  <label class="col-lg-5 col-form-label" for="angle-mode">Tilt Angle mode:</label>
+                  <label class="col-lg-5 col-form-label" for="roll-angle">Roll angle:</label>
                   <div class="col-lg-7">
                     <div class="btn-group" role="group">
-                      <input type="radio" class="btn-check" name="tilt-angles" id="tilt-angle-0" onclick="sendCommand('tiltAngleLow')">
-                      <label class="btn btn-outline-primary" for="tilt-angle-0">Low</label>
+                      <input type="radio" class="btn-check" name="roll-angles" id="roll-angle-0" onclick="sendCommand('rollAngleLow')">
+                      <label class="btn btn-outline-primary" for="roll-angle-0">Low</label>
 
-                      <input type="radio" class="btn-check" name="tilt-angles" id="tilt-angle-1" onclick="sendCommand('tiltAngleMedium')">
-                      <label class="btn btn-outline-primary" for="tilt-angle-1">Medium</label>
+                      <input type="radio" class="btn-check" name="roll-angles" id="roll-angle-1" onclick="sendCommand('rollAngleMedium')">
+                      <label class="btn btn-outline-primary" for="roll-angle-1">Medium</label>
 
-                      <input type="radio" class="btn-check" name="tilt-angles" id="tilt-angle-2" onclick="sendCommand('tiltAngleHigh')">
-                      <label class="btn btn-outline-primary" for="tilt-angle-2">High</label>
+                      <input type="radio" class="btn-check" name="roll-angles" id="roll-angle-2" onclick="sendCommand('rollAngleHigh')">
+                      <label class="btn btn-outline-primary" for="roll-angle-2">High</label>
                     </div>
+                  </div>
+                </div>
+                <div class="mb-2 row">
+                  <label class="col-lg-5 col-form-label" for="speed-unit">Speed unit:</label>
+                  <div class="col-lg-7">
+                    <div class="btn-group" role="group">
+                      <input type="radio" class="btn-check" name="speed-units" id="speed-unit-0" onclick="sendCommand('speedKilometers')">
+                      <label class="btn btn-outline-primary" for="speed-unit-0">km/h</label>
+
+                      <input type="radio" class="btn-check" name="speed-units" id="speed-unit-1" onclick="sendCommand('speedMiles')">
+                      <label class="btn btn-outline-primary" for="speed-unit-1">mph</label>
+                    </div>
+                    <small class="form-text text-muted">the wheel's own display, this page is always km/h</small>
                   </div>
                 </div>
                 <div class="mb-2 row">
@@ -235,10 +262,9 @@
                   </div>
                 </div>
                 <div class="mb-2 row">
-                  <label class="col-lg-5 col-form-label" for="resets">Resets:</label>
+                  <label class="col-lg-5 col-form-label" for="light-mode">Light state:</label>
                   <div class="col-lg-7">
-                    <input class="form-control" id="resets" type="text" value="" disabled readonly>
-                    <small class="form-text text-muted">the number of motor re-engages</small>
+                    <input class="form-control" id="light-mode" type="text" value="" disabled readonly>
                   </div>
                 </div>
                 <div class="mb-2 row">
@@ -246,6 +272,96 @@
                   <div class="col-lg-7">
                     <input class="form-control" id="poweroff-timer" type="text" value="" disabled readonly>
                     <small class="form-text text-muted">resets when moved</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card mb-2 col-lg-6">
+              <div class="card-header">
+                Battery
+              </div>
+              <div class="card-body">
+                <div class="mb-2 row">
+                  <label class="col-lg-5 col-form-label" for="pack-voltage">Measured pack voltage:</label>
+                  <div class="col-lg-7">
+                    <input class="form-control" id="pack-voltage" type="text" value="" disabled readonly>
+                    <small class="form-text text-muted">the wheel's own figure, no cell count guessed</small>
+                  </div>
+                </div>
+                <div class="mb-2 row">
+                  <label class="col-lg-5 col-form-label" for="battery-current">Battery current:</label>
+                  <div class="col-lg-7">
+                    <input class="form-control" id="battery-current" type="text" value="" disabled readonly>
+                  </div>
+                </div>
+                <div class="mb-2 row">
+                  <label class="col-lg-5 col-form-label" for="battery-temp-1">Battery temperature 1:</label>
+                  <div class="col-lg-7">
+                    <input class="form-control" id="battery-temp-1" type="text" value="" disabled readonly>
+                  </div>
+                </div>
+                <div class="mb-2 row">
+                  <label class="col-lg-5 col-form-label" for="battery-temp-2">Battery temperature 2:</label>
+                  <div class="col-lg-7">
+                    <input class="form-control" id="battery-temp-2" type="text" value="" disabled readonly>
+                  </div>
+                </div>
+                <div class="mb-2 row">
+                  <label class="col-lg-5 col-form-label" for="power-alarm">Power alarm:</label>
+                  <div class="col-lg-7">
+                    <input class="form-control" id="power-alarm" type="text" value="" disabled readonly>
+                    <small class="form-text text-muted">the wheel's own PWM alarm threshold, %</small>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="card mb-2 col-lg-6">
+              <div class="card-header">
+                Advanced readbacks
+              </div>
+              <div class="card-body">
+                <div class="mb-2 row">
+                  <label class="col-lg-5 col-form-label" for="racing-mode">Run mode:</label>
+                  <div class="col-lg-7">
+                    <input class="form-control" id="racing-mode" type="text" value="" disabled readonly>
+                    <small class="form-text text-muted">stock firmware only, bit layout unconfirmed</small>
+                  </div>
+                </div>
+                <div class="mb-2 row">
+                  <label class="col-lg-5 col-form-label" for="brake-cutoff">Brake cutoff:</label>
+                  <div class="col-lg-7">
+                    <input class="form-control" id="brake-cutoff" type="text" value="" disabled readonly>
+                  </div>
+                </div>
+                <div class="mb-2 row">
+                  <label class="col-lg-5 col-form-label" for="pedal-adjust">Pedal adjust level:</label>
+                  <div class="col-lg-7">
+                    <input class="form-control" id="pedal-adjust" type="text" value="" disabled readonly>
+                  </div>
+                </div>
+                <div class="mb-2 row">
+                  <label class="col-lg-5 col-form-label" for="angle-compensation">Angle compensation:</label>
+                  <div class="col-lg-7">
+                    <input class="form-control" id="angle-compensation" type="text" value="" disabled readonly>
+                  </div>
+                </div>
+                <div class="mb-2 row">
+                  <label class="col-lg-5 col-form-label" for="tilt-close">Tilt close level:</label>
+                  <div class="col-lg-7">
+                    <input class="form-control" id="tilt-close" type="text" value="" disabled readonly>
+                    <small class="form-text text-muted">frame 7, firmware after 09.2024</small>
+                  </div>
+                </div>
+                <div class="mb-2 row">
+                  <label class="col-lg-5 col-form-label" for="field-weakening">Field weakening:</label>
+                  <div class="col-lg-7">
+                    <input class="form-control" id="field-weakening" type="text" value="" disabled readonly>
+                  </div>
+                </div>
+                <div class="mb-2 row">
+                  <label class="col-lg-5 col-form-label" for="current-limit">Current limit level:</label>
+                  <div class="col-lg-7">
+                    <input class="form-control" id="current-limit" type="text" value="" disabled readonly>
                   </div>
                 </div>
               </div>

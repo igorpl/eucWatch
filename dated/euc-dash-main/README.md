@@ -4,6 +4,6 @@
 
 Get extended information about your EUC.
 
-Begode & Veteran support for now.
+Begode, Veteran, Kingsong and Inmotion, plus a raw telemetry logger.
 
 https://forum.electricunicycle.org/topic/27262-euc-dash/

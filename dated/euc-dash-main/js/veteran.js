@@ -11,10 +11,22 @@ const frameHeader = [0xDC, 0x5A, 0x5C]
 const minFrameLength = 36
 const maxFrameLength = 255
 
+// CHANGESTRORPACK toggles the wheel between those frames and the string debug dump.
+// A Veteran has no beep command of its own - it answers a command it accepts with a
+// beep, which is how eucVeteran.js makes it beep at all - so every toggle costs one.
+// The page therefore sends it only when what the wheel is sending is not what the
+// open view needs, and at most once per interval below. Sending it per unparsed
+// notification, which is what a parse failure used to do, is a mode flip every few
+// seconds for as long as the page is open, and the wheel beeps through all of it.
+const switchInterval = 4000
+
 let frame = null
 let frameFilled = 0
-let lastFrameAt = 0
+let wheelMode = ''             // '' unknown, 'packets' or 'strings': what is arriving
+let viewMode = 'packets'       // what the open view is asking for
 let lastSwitchAt = 0
+let line = ''
+let rendered = false
 
 function commands(cmd) {
   switch(cmd) {
@@ -50,12 +62,13 @@ async function scan() {
   service = await server.getPrimaryService(0xFFE0)
   characteristic = await service.getCharacteristic(0xFFE1)
   await characteristic.startNotifications()
-  characteristic.addEventListener('characteristicvaluechanged', readMainPackets)
+  characteristic.addEventListener('characteristicvaluechanged', readPacket)
   initialize()
 }
 
-async function initialize() {
+function initialize() {
   resetFrame()
+  resetMode()
   document.getElementById('scan-disconnect').innerText = 'Disconnect'
   document.getElementById('scan-disconnect').className = 'btn-lg btn-danger'
   document.getElementById('scan-disconnect').onclick = disconnect
@@ -65,6 +78,7 @@ async function initialize() {
 function disconnect() {
   device.gatt.disconnect()
   resetFrame()
+  resetMode()
   document.getElementById('scan-disconnect').innerText = 'Scan & Connect'
   document.getElementById('scan-disconnect').className = 'btn-lg btn-primary'
   document.getElementById('scan-disconnect').onclick = scan
@@ -79,33 +93,38 @@ function setField(field, val) {
 function resetFrame() {
   frame = null
   frameFilled = 0
-  lastFrameAt = 0
-  lastSwitchAt = 0
 }
 
-async function switchToMainPackets() {
-  characteristic.removeEventListener('characteristicvaluechanged', readExtendedPackets)
+function resetMode() {
+  wheelMode = ''
+  viewMode = 'packets'
+  lastSwitchAt = 0
+  line = ''
+  rendered = false
+}
+
+function switchToMainPackets() {
   document.getElementById('extended').style.display = 'none'
   document.getElementById('main').style.display = null
   document.getElementById('packet-switch').innerText = 'Switch to extended packets'
   document.getElementById('packet-switch').onclick = switchToExtendedPackets
   document.getElementById('next-page').classList.add('invisible')
   resetFrame()
-  await sendCommand('switchPackets')
-  characteristic.addEventListener('characteristicvaluechanged', readMainPackets)
+  viewMode = 'packets'
+  requestMode()
 }
 
-async function switchToExtendedPackets() {
-  characteristic.removeEventListener('characteristicvaluechanged', readMainPackets)
+function switchToExtendedPackets() {
   document.getElementById('main').style.display = 'none'
   document.getElementById('extended').style.display = null
   document.getElementById('packet-switch').innerText = 'Switch to main packets'
   document.getElementById('packet-switch').onclick = switchToMainPackets
   document.getElementById('next-page').classList.remove('invisible')
+  document.getElementById('extended-data').innerHTML = ''
   line = ''
   rendered = false
-  await sendCommand('switchPackets')
-  characteristic.addEventListener('characteristicvaluechanged', readExtendedPackets)
+  viewMode = 'strings'
+  requestMode()
 }
 
 async function nextPage() {
@@ -114,45 +133,71 @@ async function nextPage() {
   await sendCommand('nextPage')
 }
 
+// The only place the page toggles the wheel's output mode. It asks once the wheel has
+// actually been heard from, so a toggle is never spent guessing, and it stops asking
+// the moment the wheel is sending what the open view wants.
+function requestMode() {
+  if (!wheelMode || wheelMode == viewMode)
+    return
+
+  now = Date.now()
+  if (now - lastSwitchAt < switchInterval)
+    return
+
+  lastSwitchAt = now
+  sendCommand('switchPackets').catch(error => console.log('mode switch failed:', error))
+}
+
 function startsFrame(chunk) {
   return chunk.length > 3 && frameHeader.every((byte, i) => chunk[i] == byte)
 }
 
-// The wheel only speaks binary while it is out of string mode, and CHANGESTRORPACK
-// toggles, so firing it per unrecognised notification would flip it back and forth
-// and nothing would ever parse. Ask at most once every few seconds, and only while
-// no frame is arriving.
-async function requestPacketMode() {
-  now = Date.now()
-
-  if (now - lastFrameAt < 3000 || now - lastSwitchAt < 3000)
-    return
-
-  lastSwitchAt = now
-  await sendCommand('switchPackets')
+// String mode sends printable lines of `1503>AD17R 1700>AD16T ...`. Telemetry frames
+// are full of zero bytes, so printable text is the first half of the test.
+function isPrintable(chunk) {
+  return chunk.every(byte =>
+    byte == 0x09 || byte == 0x0A || byte == 0x0D || (byte >= 0x20 && byte <= 0x7E))
 }
 
-async function readMainPackets(event) {
+// The second half, and only needed to decide the wheel has entered string mode: a
+// telemetry frame carries no '>'. Once the wheel is known to be sending text every
+// printable chunk belongs to it, including the short tail of a page, which has no
+// '>' of its own. Without that a frame continuation chunk that happens to be all
+// printable would be read as text and would cost a toggle, which costs a beep.
+function startsText(chunk) {
+  return chunk.includes(0x3E)
+}
+
+function readPacket(event) {
   chunk = new Uint8Array(event.target.value.buffer)
 
   if (debug)
     console.log('in:', Array.from(chunk, b => b.toString(16).padStart(2, '0')).join(' '))
 
+  if (frame || startsFrame(chunk)) {
+    wheelMode = 'packets'
+    readMainPackets(chunk)
+  }
+  else if (isPrintable(chunk) && (wheelMode == 'strings' || startsText(chunk))) {
+    wheelMode = 'strings'
+    readExtendedPackets(chunk)
+  }
+  else return  // the tail of a frame whose header was missed, nothing to do with it
+
+  requestMode()
+}
+
+function readMainPackets(chunk) {
   if (startsFrame(chunk)) {
     frameLength = chunk[3] + 4
 
     if (frameLength < minFrameLength || frameLength > maxFrameLength) {
-      frame = null
-      frameFilled = 0
+      resetFrame()
       return
     }
 
     frame = new Uint8Array(frameLength)
     frameFilled = 0
-  }
-  else if (!frame) {
-    await requestPacketMode()
-    return
   }
 
   taken = Math.min(chunk.length, frame.length - frameFilled)
@@ -162,10 +207,10 @@ async function readMainPackets(event) {
   if (frameFilled < frame.length)
     return
 
-  lastFrameAt = Date.now()
-  readMainFrame(new DataView(frame.buffer))
-  frame = null
-  frameFilled = 0
+  if (viewMode == 'packets')
+    readMainFrame(new DataView(frame.buffer))
+
+  resetFrame()
 }
 
 function pedalModeHumanized(mode) {
@@ -242,35 +287,45 @@ function appendElement(key, value) {
   `
 }
 
-function readExtendedPackets(event) {
-  fragment = Decoder.decode(event.target.value)
-  if (line == '')
-    line = fragment
-  else
-    line += fragment;
+function readExtendedPackets(chunk) {
+  fragment = Decoder.decode(chunk)
+  line += fragment
 
-  if (fragment.endsWith('P7') || fragment.endsWith('BvFc') || fragment.endsWith('U5')) {
-    keys = line.match(/>\w+/g)
-    keys = keys.map(k => k.slice(1))
-    values = line.match(/-?\d+/g)
-
-    if (fragment.endsWith('U5')) {
-      idleTime = line.match(/\d+:.+:.\d+/)[0]
-      keys.unshift('idle')
-      values.splice(0, 3, idleTime)
-    }
-
-    if (rendered) {
-      try { keys.forEach((key, i) => setField(key, values[i])) }
-      catch { rendered = false }
-    }
-    else {
-      html = ''
-      keys.forEach((key, i) => html += appendElement(key, values[i]))
-      document.getElementById('extended-data').innerHTML = html
-      rendered = true
-    }
-
+  // The view can be on main packets while the wheel is still finishing a string page,
+  // in the window between asking for the switch and the wheel making it
+  if (viewMode != 'strings') {
     line = ''
+    return
+  }
+
+  if (!fragment.endsWith('P7') && !fragment.endsWith('BvFc') && !fragment.endsWith('U5'))
+    return
+
+  page = line
+  line = ''
+
+  keys = page.match(/>\w+/g)
+  values = page.match(/-?\d+/g)
+
+  if (!keys || !values)
+    return
+
+  keys = keys.map(k => k.slice(1))
+
+  if (fragment.endsWith('U5')) {
+    idleTime = page.match(/\d+:.+:.\d+/)
+    keys.unshift('idle')
+    values.splice(0, 3, idleTime ? idleTime[0] : '')
+  }
+
+  if (rendered) {
+    try { keys.forEach((key, i) => setField(key, values[i])) }
+    catch { rendered = false }
+  }
+  else {
+    html = ''
+    keys.forEach((key, i) => html += appendElement(key, values[i]))
+    document.getElementById('extended-data').innerHTML = html
+    rendered = true
   }
 }
