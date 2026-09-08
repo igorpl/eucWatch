@@ -1,5 +1,20 @@
 const Encoder = new TextEncoder()
 const Decoder = new TextDecoder()
+const debug = new URL(window.location.href).searchParams.get('debug')
+
+// A telemetry frame is DC 5A 5C <len> ... <crc32>, where <len> counts every byte up
+// to the CRC, header included, so the frame is len + 4 bytes long. Old firmware
+// always sent len = 0x20 (36 bytes) over two notifications; current wheels vary the
+// length per frame (47..73 seen on a Sherman S) and spread it over as many
+// notifications as it takes, so frames have to be reassembled by that length.
+const frameHeader = [0xDC, 0x5A, 0x5C]
+const minFrameLength = 36
+const maxFrameLength = 255
+
+let frame = null
+let frameFilled = 0
+let lastFrameAt = 0
+let lastSwitchAt = 0
 
 function commands(cmd) {
   switch(cmd) {
@@ -40,6 +55,7 @@ async function scan() {
 }
 
 async function initialize() {
+  resetFrame()
   document.getElementById('scan-disconnect').innerText = 'Disconnect'
   document.getElementById('scan-disconnect').className = 'btn-lg btn-danger'
   document.getElementById('scan-disconnect').onclick = disconnect
@@ -48,6 +64,7 @@ async function initialize() {
 
 function disconnect() {
   device.gatt.disconnect()
+  resetFrame()
   document.getElementById('scan-disconnect').innerText = 'Scan & Connect'
   document.getElementById('scan-disconnect').className = 'btn-lg btn-primary'
   document.getElementById('scan-disconnect').onclick = scan
@@ -59,6 +76,13 @@ function setField(field, val) {
   document.getElementById(field).value = val
 }
 
+function resetFrame() {
+  frame = null
+  frameFilled = 0
+  lastFrameAt = 0
+  lastSwitchAt = 0
+}
+
 async function switchToMainPackets() {
   characteristic.removeEventListener('characteristicvaluechanged', readExtendedPackets)
   document.getElementById('extended').style.display = 'none'
@@ -66,6 +90,7 @@ async function switchToMainPackets() {
   document.getElementById('packet-switch').innerText = 'Switch to extended packets'
   document.getElementById('packet-switch').onclick = switchToExtendedPackets
   document.getElementById('next-page').classList.add('invisible')
+  resetFrame()
   await sendCommand('switchPackets')
   characteristic.addEventListener('characteristicvaluechanged', readMainPackets)
 }
@@ -89,18 +114,72 @@ async function nextPage() {
   await sendCommand('nextPage')
 }
 
-async function readMainPackets(event) {
-  data = event.target.value
-
-  if (data.getUint32(0) == 0xDC5A5C20)
-    readFirstMainPacket(data)
-  else if (data.byteLength == 16 && data.getUint8(15) == 0)
-    readSecondMainPacket(data)
-  else
-    await sendCommand('switchPackets')
+function startsFrame(chunk) {
+  return chunk.length > 3 && frameHeader.every((byte, i) => chunk[i] == byte)
 }
 
-function readFirstMainPacket(data) {
+// The wheel only speaks binary while it is out of string mode, and CHANGESTRORPACK
+// toggles, so firing it per unrecognised notification would flip it back and forth
+// and nothing would ever parse. Ask at most once every few seconds, and only while
+// no frame is arriving.
+async function requestPacketMode() {
+  now = Date.now()
+
+  if (now - lastFrameAt < 3000 || now - lastSwitchAt < 3000)
+    return
+
+  lastSwitchAt = now
+  await sendCommand('switchPackets')
+}
+
+async function readMainPackets(event) {
+  chunk = new Uint8Array(event.target.value.buffer)
+
+  if (debug)
+    console.log('in:', Array.from(chunk, b => b.toString(16).padStart(2, '0')).join(' '))
+
+  if (startsFrame(chunk)) {
+    frameLength = chunk[3] + 4
+
+    if (frameLength < minFrameLength || frameLength > maxFrameLength) {
+      frame = null
+      frameFilled = 0
+      return
+    }
+
+    frame = new Uint8Array(frameLength)
+    frameFilled = 0
+  }
+  else if (!frame) {
+    await requestPacketMode()
+    return
+  }
+
+  taken = Math.min(chunk.length, frame.length - frameFilled)
+  frame.set(chunk.subarray(0, taken), frameFilled)
+  frameFilled += taken
+
+  if (frameFilled < frame.length)
+    return
+
+  lastFrameAt = Date.now()
+  readMainFrame(new DataView(frame.buffer))
+  frame = null
+  frameFilled = 0
+}
+
+function pedalModeHumanized(mode) {
+  if (pedalModeHuman[mode])
+    return pedalModeHuman[mode]
+
+  // New wheels dropped the three modes for a percentage, reported here as value - 100
+  if (mode >= 100 && mode <= 200)
+    return `${mode - 100}% sensitivity`
+
+  return mode
+}
+
+function readMainFrame(data) {
   voltage = data.getUint16(4) / 100
   setField('voltage', voltage)
 
@@ -122,31 +201,34 @@ function readFirstMainPacket(data) {
 
   temperature = data.getInt16(18) / 100
   setField('temperature', temperature)
-}
 
-function readSecondMainPacket(data) {
-  powerOffTime = data.getUint16(0)
+  powerOffTime = data.getUint16(20)
   powerOffMinutes = Math.floor(powerOffTime / 60)
   powerOffSeconds = powerOffTime - (powerOffMinutes * 60)
   setField('poweroff-timer', `${powerOffMinutes}:${powerOffSeconds}`)
 
-  chargeMode = data.getUint16(2)
+  chargeMode = data.getUint8(23)
   setField('charge-mode', chargeMode)
 
-  alarmSpeed = data.getUint16(4) / 10
+  alarmSpeed = data.getUint16(24) / 10
   setField('alarm-speed', alarmSpeed == 280 ? 'off' : alarmSpeed)
 
-  tiltbackSpeed = data.getUint16(6) / 10
+  tiltbackSpeed = data.getUint16(26) / 10
   setField('tiltback-speed', tiltbackSpeed == 280 ? 'off' : tiltbackSpeed)
 
-  version = data.getUint16(8).toString()
-  setField('version', `${version[0]}.${version[1]}.${version.slice(2)}`)
+  version = data.getUint16(28)
+  setField('version',
+    `${Math.floor(version / 1000)}.${Math.floor(version % 1000 / 100)}.${version % 100}`)
 
-  pedalMode = data.getUint16(10)
-  setField('pedal-mode', pedalModeHuman[pedalMode])
+  // Byte 30 belongs to the version code, the pedal mode is byte 31 on its own
+  pedalMode = data.getUint8(31)
+  setField('pedal-mode', pedalModeHumanized(pedalMode))
 
-  roll = data.getInt16(12)
-  setField('roll', roll)
+  pitch = data.getInt16(32) / 100
+  setField('pitch', pitch)
+
+  pwm = data.getUint16(34) / 100
+  setField('pwm', pwm)
 }
 
 function appendElement(key, value) {
