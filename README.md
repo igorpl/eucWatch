@@ -27,6 +27,13 @@ Files for P8 watch are [here](https://github.com/enaon/eucWatch/tree/main/P8).  
 
 var spi=new SPI();spi.setup({sck:D2,mosi:D3,miso:D4,mode:0}); spi.send([0xab],D5);  //wake
 
+### Developer notes
+
+[**Watch menus**](docs/WatchMenus.md) - every wheel menu the watch draws, screen by screen, per maker, with the navigation and gesture conventions.
+[**Watch menu plan**](docs/WatchMenuPlan.md) - the gaps that map turned up and the order to fix them in.
+
+Per-maker protocol notes live next to the module: [Begode vs the Begode app](v2/euc/eucBegode/BegodeAppDiff.md), [Begode vs WheelLog](v2/euc/eucBegode/WheelLogDiff.md), [Begode PWM](v2/euc/eucBegode/PWM.md), [Veteran protocol](v2/euc/eucVeteran/VeteranProtocol.md), [Veteran vs WheelLog](v2/euc/eucVeteran/WheelLogDiff.md).
+
 ### Credits
 
 @ATC1441, who made over the air hacking of the P8 watch possible. He wrote the [DaFlasher](https://play.google.com/store/apps/details?id=com.atcnetz.paatc.patc&gl=US) playstore app to make the proccess easy. He also made the adruino based [ATCWatch](https://github.com/atc1441/ATCwatch) custom firmware to run on the P8 watch.
