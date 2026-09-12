@@ -633,7 +633,9 @@ Alarm is capped at 100, limit goes to 200. Both write a CRC32 command frame
         │ COMP                         --     │  pedComp
         └─────────────────────────────────────┘
 
-        editor: 0-100 in steps of 5.
+        editor: 0-100, tap steps 1%, hold jumps 10%.
+        The touch handler has no release event, so the hold is
+        one jump per press, not a repeat.
         A row whose value is undefined or 128 is unsupported on
         this wheel: it shows "--" and tapping toasts NOT ON THIS WHEEL.
         A refused write toasts WRITE REJECTED.

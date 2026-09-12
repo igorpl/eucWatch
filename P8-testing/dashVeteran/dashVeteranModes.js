@@ -16,6 +16,13 @@ face[0] = {
 		this.g.setFont("Vector",20);
 		this.g.drawString("PEDAL SETTINGS",120-(this.g.stringWidth("PEDAL SETTINGS")/2),214);
 		this.g.flip();
+		//btn paints the rows at 0-62, 65-127 and 130-192, so the seams between them and the
+		//band above the footer keep whatever the previous screen left there
+		this.g.setColor(0,0);
+		this.g.fillRect(0,63,239,64);
+		this.g.fillRect(0,128,239,129);
+		this.g.fillRect(0,193,239,195);
+		this.g.flip();
 		this.setE=0;
 		this.was=[-1,-1,-1];
 		this.run=true;
@@ -72,8 +79,8 @@ face[0] = {
 	},
 	set: function(i){
 		this.setE=i+1;
-		//the app uses a 1% seek bar, 5% is enough on a watch and matches the alert screen
-		this.setV=Math.round((euc.dash.opt.ride[this.itm[i][1]]||0)/5)*5;
+		//1% steps like the app's seek bar, with a 10% jump on a long press
+		this.setV=Math.round(euc.dash.opt.ride[this.itm[i][1]]||0);
 		if (100<this.setV) this.setV=0;
 		this.g.setColor(0,1);
 		this.g.fillRect(0,0,239,195);
@@ -143,8 +150,8 @@ touchHandler[0]=function(e,x,y){
 			face[0].set(i);
 			buzzer.nav([30,50,30]);
 		}else {
-			if (120<=x&&y<=195) { if (face[0].setV<100) face[0].setV=face[0].setV+5; }
-			else if (y<=195) { if (0<face[0].setV) face[0].setV=face[0].setV-5; }
+			if (120<=x&&y<=195) { if (face[0].setV<100) face[0].setV=face[0].setV+1; }
+			else if (y<=195) { if (0<face[0].setV) face[0].setV=face[0].setV-1; }
 			buzzer.nav([30,50,30]);
 			face[0].val();
 		}
@@ -171,7 +178,14 @@ touchHandler[0]=function(e,x,y){
 		face.go("dashVeteran",0);
 		return;
 	case 12: //long press event
-		buzzer.nav(40);
+		//the touch handler sends this once per hold and never reports the lift, so a hold is
+		//a coarse 10% jump rather than a repeat, and 0-100 is ten holds instead of 100 taps
+		if (face[0].setE && y<=195) {
+			let v=(120<=x)?face[0].setV+10:face[0].setV-10;
+			face[0].setV=(100<v)?100:(v<0)?0:v;
+			buzzer.nav([30,50,30]);
+			face[0].val();
+		}else buzzer.nav(40);
 		this.timeout();
 		break;
 	}
