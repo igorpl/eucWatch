@@ -53,7 +53,9 @@ if (global.euc&&!euc.proxy){
 					}
 				}
 			}, {advertise: ['0xffe0'],uart:false });
-			NRF.setAdvertising({}, { name:"LK_"+ew.def.name,connectable:true });
+			//the phone apps filter on the LK and NF prefixes, so a Nosfet has to be relayed
+			//under its own or the app takes the proxy for a Veteran and never offers it
+			NRF.setAdvertising({}, { name:((euc.temp.brand&&euc.temp.brand()=="Nosfet")?"NF_":"LK_")+ew.def.name,connectable:true });
 			//NRF.setAddress(euc.mac);
 			NRF.setAddress(NRF.getAddress().substr(0,15)+"a7 public");
 			NRF.disconnect();

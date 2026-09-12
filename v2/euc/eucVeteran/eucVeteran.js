@@ -14,6 +14,13 @@ euc.temp.lkSet=function(cmd,blk,slot,val,len){
 	f[n-4]=(crc>>>24)&255; f[n-3]=(crc>>>16)&255; f[n-2]=(crc>>>8)&255; f[n-1]=crc&255;
 	return f;
 };
+//Leaperkim sells the same wheels as Nosfet, and those advertise NF instead of LK. Nothing
+//in any packet says which one it is, the prefix of the advertised name is the only marker,
+//so it is read back from the garage slot the scan wrote it into.
+euc.temp.brand=function(){
+	let d=require("Storage").readJSON("dash.json",1);
+	return ((d["slot"+d.slot+"Name"]||"").startsWith("NF"))?"Nosfet":"Veteran";
+};
 euc.cmd=function(no,v){
 	switch (no) {
 		//Veteran has no beep command, re-sending the current pedal mode makes the wheel beep
@@ -324,6 +331,12 @@ euc.conn=function(mac){
 				}).catch(euc.off);
 			}
 		};
+		//the garage labels a slot with its Model, and Veteran never wrote one, so every
+		//Leaperkim slot fell back to the maker and read VETERAN even when it was a Nosfet.
+		//Written only when it differs, as eucBegode writes its model banner, so a wheel
+		//swapped into the slot picks up the new brand without rewriting flash every connect.
+		let sl="slot"+ew.do.fileRead("dash","slot")+"Model";
+		if (ew.do.fileRead("dash",sl)!=euc.temp.brand()) ew.do.fileWrite("dash",sl,euc.temp.brand());
 		if (!ew.do.fileRead("dash","slot"+ew.do.fileRead("dash","slot")+"Mac")) {
 			euc.dash.info.get.mac=euc.mac; euc.dash.opt.bat.hi=420;euc.dash.opt.bat.low=315;
 			euc.updateDash(require("Storage").readJSON("dash.json",1).slot);

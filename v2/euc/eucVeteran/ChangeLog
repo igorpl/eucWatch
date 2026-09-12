@@ -1,3 +1,4 @@
+2.18: Nosfet brand in the garage, and the proxy relays under the NF prefix
 2.17: steady charging current, latched across the sub packets that do not carry it
 2.16: third temperature at offset 59
 2.15: pedal sensitivity, assist and compensation set and read back

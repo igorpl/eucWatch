@@ -50,12 +50,15 @@ face[0] = {
 					if (name.startsWith("GotWay")) {
 						if ( (name).includes("Proxy")) name="GW-Proxy";
 						else name="GW-"+name.substr(name.length -5,name.length);
-					}else if (name.startsWith("LK")) {
-						if ( (name).includes("Proxy")) name="LK-Proxy";
-						else name = "LK-" + name.substr(name.length - 4, name.length);
-					} else if (name.startsWith("NF")) {
-						if ((name).includes("Proxy")) name = "LK-Proxy";
-						else name = "NF-" + name.substr(name.length - 4, name.length);
+					}else if (name.startsWith("LK")||name.startsWith("NF")) {
+						//one branch for both Leaperkim prefixes: the NF side used to label its
+						//proxy LK-Proxy. Newer wheels advertise a longer serial (LK15128) and
+						//the old last-four cut turned that into LK-5128, so keep everything
+						//after the prefix and only trim what would not fit the tile.
+						let p=name.substr(0,2),s=name.substr(2);
+						if (s.startsWith("-")||s.startsWith("_")) s=s.substr(1);
+						if (8<s.length) s=s.substr(s.length-8,s.length);
+						name=((name).includes("Proxy"))?p+"-Proxy":p+"-"+s;
 					}else if (name.startsWith("KS")) {
 						if ( (name).includes("Proxy")) name="KS-Proxy";
 						else name="KS-"+name.substr(name.length -4,name.length);
