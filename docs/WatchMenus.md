@@ -2,14 +2,14 @@
 
 A screen-by-screen map of every wheel menu the watch draws, per maker. Written from the
 code in `P8-testing/dash*/` (the P8 / P22 / Pinetime app set that `v2/apps.json` ships)
-and the command tables in `v2/euc/euc*/`. Audited 2026-09-11.
+and the command tables in `v2/euc/euc*/`. Audited 2026-09-11; Inmotion added 2026-09-12.
 
 Companion document: [WatchMenuPlan.md](WatchMenuPlan.md) — the gaps this map turned up
 and the plan to close them.
 
 The older `Magic-testing/dash*` set (DK08 / DSD6) is a smaller, frozen copy of the same
-screens and is **not** described here. Where `v2/apps.json` lists an app twice, the
-second entry is that Magic set.
+screens and is **not** described here, except where it diverges in a way that breaks it
+(§9.0). Where `v2/apps.json` lists an app twice, the second entry is that Magic set.
 
 ---
 
@@ -100,6 +100,11 @@ alarm row, the watch-alert editors). Those are called out per screen.
 - slide **down** = commit-and-leave on some screens, cancel-and-leave on others (§7)
 - slide **left** = refused
 
+Inmotion does not use this editor. Its screens open `face.menu.full` and set
+`face[0].sub` instead: the same left-half/right-half stepping, but **every step is sent
+to the wheel as it happens**, so there is nothing to commit and nothing to cancel. Tap
+below y=170, or slide right, to close it. See §9.1 and §9.2.
+
 ### 2.4 Where the watch lands when the screen wakes
 
 This is `face[1]`, and it is **not** the screen you were on:
@@ -107,9 +112,10 @@ This is `face[1]`, and it is **not** the screen you were on:
 | Screen you left | Wakes on |
 | --- | --- |
 | any ride face (Digital / Simple / PWM) | `clock` |
-| maker root (`dashBegode`, `dashKingsong`, `dashVeteran`, `dashNinebot*`) | the current ride face |
+| maker root (`dashBegode`, `dashKingsong`, `dashVeteran`, `dashNinebot*`, `dashInmotion*`) | the current ride face |
 | every Veteran sub-page | the current ride face |
 | Begode / Kingsong sub-pages | their parent page |
+| Inmotion sub-pages | their parent page, except `dashInmotionV10AdvLimits` (the root) and the three that wake into the dead `dashInmotionV1Adv` — see §9.0 |
 | `dashGarage` | `dashOff` |
 | `dashAlerts`, `dashScan` | `dashGarage` |
 | `dashOptions` | the app it was opened from |
@@ -691,35 +697,287 @@ was never written. See the gap list.
 
 ---
 
-## 9. Inmotion — outline only
+## 9. Inmotion
 
-Not audited in depth. `dashInmotionV2`, `dashInmotionV11` and `dashInmotionV12` are one
-screen each with the same four tiles — LIGHT, WATCH ALERTS, TPMS, HORN (HORN holds open
-a sound picker, 1-22 on V10 and 1-30 on V11, playing each sound as you scroll).
+Four separate menu apps over two protocol families:
 
-`dashInmotionV10` is the only one with sub-pages: root → `dashInmotionV1Opt` →
-`dashInmotionV1Opt2` → `dashInmotionV1Adv`. **The last hop is broken** — the screens are
-registered as `dashInmotionV10Adv` / `dashInmotionV10AdvCalibrate` but navigated to as
-`dashInmotionV1Adv` / `dashInmotionV1AdvCalibrate`, so the wheel-settings page is
-unreachable. The limits and pass pages under it are commented out in the handler as well.
+| Maker string | Menu app | Protocol module | Screens |
+| --- | --- | --- | --- |
+| `InmotionV10` | `dashInmotionV10` | `eucInmotionV10` (V5 / V8 / V10) | 7 shipped, **3 reachable** |
+| `InmotionV2` | `dashInmotionV2` | `eucInmotionV2` (V11 / V12 / V13 / V14) | 1 |
+| `InmotionV11` | `dashInmotionV11` | `eucInmotionV11` | 1 |
+| `InmotionV12` | `dashInmotionV12` | `eucInmotionV12` | 1 |
+
+`dashInmotionV11.js` and `dashInmotionV12.js` are **byte-identical apart from the first
+comment line**. `dashInmotionV2.js` is the same screen again, reindented, with two
+behavioural differences (§9.7).
+
+`dashInmotionV2` and `eucInmotionV2` are in `v2/apps.json` only — the older
+`P8-testing/apps.json` index predates them both, and `Magic-testing` has neither the app
+nor a `dashScan` entry that would ask for it.
+
+```
+   ride face ──left──► dashInmotionV10 ──left──► dashInmotionV1Opt ──left──► dashInmotionV1Opt2
+                            │                          │                            │
+                            │ tap BL (tpms)            │ tap TR                     │ left
+                            ▼                          ▼                            ▼
+                        tpmsFace                  dashAlerts              "dashInmotionV1Adv"
+                                                                                 no such file
+
+   registered but unreachable:  dashInmotionV10Adv
+                                dashInmotionV10AdvCalibrate
+                                dashInmotionV10AdvLimits
+                                dashInmotionV10AdvPass
+
+   ride face ──left──► dashInmotionV2 / V11 / V12      (one screen, slide left buzzes)
+                            │ tap TR          │ tap BL
+                            ▼                 ▼
+                        dashAlerts        tpmsFace
+```
+
+### 9.0 The naming split
+
+The V10 app was renamed from `dashInmotionV1*` to `dashInmotionV10*` and **only the
+storage names moved**. What each screen navigates to, versus what `v2/apps.json`
+registers:
+
+| `face.go(...)` target in the code | Registered as | Result |
+| --- | --- | --- |
+| `dashInmotionV10` | `dashInmotionV10` | ok |
+| `dashInmotionV1Opt` | `dashInmotionV1Opt` | ok |
+| `dashInmotionV1Opt2` | `dashInmotionV1Opt2` | ok |
+| `dashInmotionV1Adv` | `dashInmotionV10Adv` | **dead** |
+| `dashInmotionV1AdvCalibrate` | `dashInmotionV10AdvCalibrate` | **dead** |
+| `dashInmotionV1AdvLimits` | `dashInmotionV10AdvLimits` | **dead**, and commented out too |
+| `dashInmotionV1AdvPass` | `dashInmotionV10AdvPass` | **dead**, and commented out too |
+
+A `face.go` to a name with no storage file does not throw: `eval(Storage.read(app))`
+evaluates `undefined`, `face[0]` is still the **previous** page's object, and `init()`
+repaints it. So slide-left on `dashInmotionV1Opt2` looks like nothing happened — but
+`face.appCurr` is now `"dashInmotionV1Adv"`, and the `ew.def.off[face.appCurr]` screen
+timeout is being read from a key that will never exist.
+
+The `Magic-testing` copy has the **mirror** problem: its code still says
+`dashInmotionV1`, `dashInmotionV1Opt`, `dashInmotionV1Opt2` throughout, while
+`v2/apps.json` registers that set as `dashInmotionV10`, `dashInmotionV10Opt`,
+`dashInmotionV10Opt2`. On a DK08 / DSD6 the **whole** Inmotion chain is dead from the
+first hop, including the root's own wake page.
+
+### 9.1 `dashInmotionV10` — footer **ACTIONS**
+
+Not the same four tiles as the other Inmotions. There is no WATCH ALERTS and no HORN
+here; both live one page in.
+
+```
+        ┌───────────────────┬───────────────────┐
+        │ LIGHT             │ VOLUME            │
+        │ ON                │ 60                │
+        │ tap: 0 <-> 1      │ tap: editor 0-100 │
+        │  setLights        │  setVolume        │
+        ├───────────────────┼───────────────────┤
+        │ TPMS      32      │ OFF               │
+        │                   │                   │
+        │ tap: tpmsFace     │ tap: "HOLD ->"    │
+        │ hold: on/off      │ hold: power off   │
+        └───────────────────┴───────────────────┘
+```
+
+- LIGHT is the only Inmotion tile anywhere that is seeded from the wheel:
+  `eucInmotionV10.js:114` reads `opt.lght.HL` out of byte 99 of the info frame.
+- VOLUME opens the full-screen `face.menu.full` editor. Tap the **left** half above
+  y=170 to step down 10, the **right** half to step up 10, anywhere below y=170 to leave.
+  Every step sends `setVolume` immediately — there is no commit. Range 0-100, and 0
+  renders as `MUTE`. The wheel reports the value in hundredths (`(hi<<8|lo)/100`) and
+  `setVolume` multiplies by 100 again, so the two agree.
+- The VOLUME tile is blue when audible and **red-orange when muted**.
+- OFF holds to `euc.temp.aOff=1; euc.tgl()`, which makes the disconnect sequence send
+  `control 5` (power off) instead of the normal teardown.
+- The hold-to-disable branch of the TPMS tile calls `btn()` **with the leading `bt`
+  argument missing** (`dashInmotionV10.js:217`), so the tile is not repainted. Every
+  other maker passes `btn(0,"TPMS",...)` there. See the gap list.
+
+### 9.2 `dashInmotionV1Opt` — footer **OPTIONS**
+
+```
+        ┌───────────────────┬───────────────────┐
+        │ LED               │ WATCH             │
+        │ RING              │ ALERTS            │
+        │ tap: control 15/16│ tap: dashAlerts   │
+        │                   │ hold: all haptics │
+        ├───────────────────┼───────────────────┤
+        │ SENSOR            │ HORN              │
+        │ LIFT              │                   │
+        │ tap: sethandle    │ tap: on/off flag  │
+        │       Button 1/0  │ hold: sound 1-22  │
+        └───────────────────┴───────────────────┘
+```
+
+- LED RING and SENSOR LIFT are **write-only**: nothing in `eucInmotionV10.js` decodes
+  either back, so the tiles show the last thing the watch sent, not what the wheel has.
+- HORN sets `opt.horn.en` for `handler_btn.js`. Unlike Begode, this one works — all four
+  Inmotion modules implement `hornOn` / `hornOff` by firing `playSound` with
+  `opt.horn.mode`.
+- The hold-HORN sound picker plays each sound as you scroll, 1-22. It calls
+  `face.menu.full`, which is installed by **`dashInmotionV10.js`** under `if (!face.menu)`
+  and not by this file. Every other Inmotion screen carries its own `face[0].menu`.
+- WATCH ALERTS goes to the shared `dashAlerts`, which shows Inmotion only its four
+  haptic tiles — its wheel-alarm page is gated to Kingsong, Begode and Veteran
+  (`dashAlerts.js:26`, `:365`).
+
+### 9.3 `dashInmotionV1Opt2` — footer **MORE**
+
+```
+        ┌───────────────────┬───────────────────┐
+        │ AUTO              │      (empty)      │
+        │ LIGHT             │                   │
+        │ tap/hold: toggle  │ tap: buzz 40      │
+        ├───────────────────┼───────────────────┤
+        │ AUTO              │      (empty)      │
+        │ OFF               │  but it lights up │
+        │ tap/hold: toggle  │ tap: buzz 40      │
+        └───────────────────┴───────────────────┘
+```
+
+- AUTO LIGHT (`auto.onC.HL`) does two things: on connect it re-sends the stored light
+  state, on disconnect it turns the lights off.
+- AUTO OFF (`auto.onD.off`) makes a normal disconnect power the wheel down.
+- Top-right is a dead grey tile; the commented-out code behind it was a second WATCH
+  ALERTS.
+- Bottom-right is drawn with **no text at all** but is still coloured from
+  `auto.onC.lift` — a tile that changes colour for a flag the rider can neither read nor
+  set. The commented-out code behind it was AUTO LIFT.
+
+### 9.4 `dashInmotionV10Adv` — footer **ADVANCED** (unreachable, §9.0)
+
+```
+        ┌───────────────────┬───────────────────┐
+        │ MODE              │                   │
+        │ COMFORT           │     CALIBRATE     │
+        │ tap/hold:         │ tap: Calibrate    │
+        │  setRideMode      │       (dead name) │
+        ├───────────────────┼───────────────────┤
+        │ WHEEL             │                   │
+        │ ALERTS            │       PASS        │
+        │ tap: buzz 40      │ tap: buzz 40      │
+        └───────────────────┴───────────────────┘
+```
+
+Both bottom tiles are painted blue — the colour this codebase uses for a live value or a
+selected control — and both handlers are commented out. MODE reads `opt.ride.mode` from
+the info frame (`eucInmotionV10.js:197`) and labels it `COMFORT` / `CLASIC` (sic).
+
+### 9.5 `dashInmotionV10AdvCalibrate` (unreachable, §9.0)
+
+Two states in one file.
+
+1. **Pedal tilt.** A large `opt.ride.pTlt` between a `<` and a `>` bitmap. Tap left of
+   x=120 to step down, right to step up, and **each step sends `setPpedalTilt` with no
+   clamping** (`:126-131`) — the command comments its range as -80..+80
+   (`eucInmotionV10.js:35`) and nothing enforces it. The bottom strip reads
+   `START CALIBRATION`.
+2. **The instruction card.** Five numbered steps, then a green `START` that sends
+   `calibration` and a blue `CANCEL`.
+
+`CANCEL`, slide-right and the wake page all go to `dashInmotionV1Adv`, so even if the
+page were reachable the only way back would be slide-down to the ride face.
+
+### 9.6 `dashInmotionV10AdvLimits` / `dashInmotionV10AdvPass` (unreachable, §9.0)
+
+These two are not Inmotion screens. They are a pre-rename fork of
+`dashKingsongAdvLimits.js` and `dashKingsongAdvPass.js` — ~630 lines shipped to the watch
+and never opened. What is still Kingsong inside them:
+
+| In the file | Exists for Inmotion? |
+| --- | --- |
+| `euc.wri("setSpeedLimits")` — on slide down, slide right, and after every edit | no. `eucInmotionV10` has `speedLimit`, one value |
+| three speed alarms plus tiltback | no. Inmotion has a single speed limit |
+| `euc.wri("passClear")`, `"passChange"`, `"passSet"` | no. And Kingsong itself renamed these to `setPassClear` / `setPassChange` / `setPass` |
+| `euc.dash.limt[b]`, `euc.dash.limt.en[b]`, `euc.dash.lim[...]`, `euc.dash.limE[2]` | **none of these objects exist anywhere in the tree** — the editor would throw on open |
+
+`dashInmotionV10AdvLimits` also wakes into `dashInmotionV10` rather than into its parent.
+
+### 9.7 `dashInmotionV2` / `dashInmotionV11` / `dashInmotionV12` — footer **SETTINGS**
+
+One screen, no sub-pages, no page-position bar. Slide left buzzes.
+
+```
+        ┌───────────────────┬───────────────────┐
+        │ LIGHT             │ WATCH             │
+        │ ON                │ ALERTS            │
+        │ tap: lightsOn/Off │ tap: dashAlerts   │
+        ├───────────────────┼───────────────────┤
+        │ TPMS      32      │ HORN              │
+        │                   │                   │
+        │ tap: tpmsFace     │ tap: on/off flag  │
+        │ hold: on/off      │ hold: sound 1-30  │
+        └───────────────────┴───────────────────┘
+```
+
+- The sound picker runs 1-30 here against V10's 1-22.
+- `opt.lght.HL` is **never decoded** by any of these three modules. The tile is a
+  watch-side latch that reads `OFF` after every reconnect whatever the wheel is doing.
+- On V11 and V12 the light is forced **off on every disconnect**
+  (`eucInmotionV11.js:240`, `eucInmotionV12.js:229`) and re-sent on connect,
+  unconditionally — the behaviour V10 puts behind its AUTO LIGHT tile, with no tile. V2
+  does neither.
+- A tap that lands on no tile buzzes `[30,50,30]`, the accept buzz, where §2.2 says a
+  refused tap buzzes `40`. Not unique to Inmotion — `dashBegodeAdv`, `dashBegodeOpt`,
+  `dashKingsongAdv` and `dashKingsongAdvCalibrate` do it too.
+- `face[0].set` is cleared in `init()` and tested in two handlers, and nothing ever sets
+  it — leftover from whatever this screen was forked from, along with the
+  `drawLine(120,0,120,97)` cleanup that goes with it.
+- **V2 only:** `init()` sets `euc.is.busy=1` ("stop bt loop-accept commands") and no exit
+  path clears it. On V11/V12 every exit does `euc.is.busy=0; euc.wri("live")`. It is inert
+  today because `eucInmotionV2.js` never reads `euc.is.busy` — it uses `euc.tout.busy` —
+  so this is a trap for whoever wires the flag up next, not a live bug.
+
+### 9.8 What the Inmotion protocols can do that no menu reaches
+
+`eucInmotionV2` / `V11` / `V12` carry a large command table. Four tiles reach two of it.
+
+| Command | Reachable from a menu? |
+| --- | --- |
+| `lightsOn` / `lightsOff` | yes, the LIGHT tile |
+| `playSound` | yes, the HORN tile and the side button |
+| `drlOn`/`Off`, `fanOn`/`Off`, `fanQuietOn`/`Off` | **no** |
+| `liftOn`/`Off`, `lock`/`unlock`, `transportOn`/`Off` | **no** |
+| `rideComfort` / `rideSport`, `performanceOn`/`Off` | **no** |
+| `remainderReal`/`Est`, `lowBatLimitOn`/`Off` | **no** |
+| `usbOn`/`Off`, `loadDetectOn`/`Off`, `mute`/`unmute` | **no** |
+| `calibration`, `speedLimit`, `pedalTilt`, `pedalSensitivity` | **no** |
+| `setVolume`, `setBrightness` | **no** |
+
+On the V10 side the table is smaller and the menus cover more of it, but `alert`,
+`pincode`, `speedLimit`, `setBrightness` and `setPedalSensitivity` have no tile, and
+`setPpedalTilt` / `calibration` only have one on the unreachable page.
+
+Two of these are already decoded and simply not drawn: `eucInmotionV2.js:143-153` parses
+the wheel's own speed limit into `alrt.spd.max` and its volume into `opt.snd.vol` on
+every poll, and neither appears on the V2 screen. That parser is also gated on
+`euc.dash.info.get.modl == "V11"`, so a V12/V13/V14 running the V2 module never reaches
+it at all.
+
+Two are wrong rather than missing: `setPpedalTilt` (`eucInmotionV10.js:35`) and
+`setPedalSensitivity` (`:40`) build the **identical frame**, and `proxyInmotionV2.js`
+exists in the tree but is listed in neither `apps.json`, so it never ships.
 
 ---
 
 ## 10. What each maker actually has, side by side
 
-| | Begode | Kingsong | Veteran | Ninebot Z / S / E |
-| --- | --- | --- | --- | --- |
-| screens | 8 | 13 | 4 | 1 |
-| head light | on / off / strobe | on / auto / off + watch CITY | on / off | **not implemented** / — / — |
-| LED | 0-9 mode | ride LED on/off | — | ring on/off (S, E) |
-| pedal mode | soft / med / hard | hard / med / soft | soft/med/strong **or** 3 percentages | 0-9 (S, E) |
-| roll angle | low / med / high | — | — | — |
-| calibrate | yes | yes, + manual tilt | — | — |
-| wheel speed alarms | mode + tiltback | 3 alarms + tiltback | alert + limit | — |
-| lock | — | lock / unlock / pass | — | auto lock (S, E) |
-| volume | 1-9 | via voice mode | commands exist, **no UI** | — |
-| idle power off | read only | set, 60 s - 4 h, + off now | — | — |
-| on connect / disconnect | light, LED, beep | light, LED, lift, voice, unlock once / auto off, auto lock | beep only | — |
-| horn (side button) | flag only, **no command** | yes | yes | **not implemented** |
-| TPMS | yes | yes | yes | yes (Z only) |
-| watch alerts | yes | yes | yes | yes (Z, S; **broken on E**) |
+| | Begode | Kingsong | Veteran | Ninebot Z / S / E | Inmotion V10 | Inmotion V2 / V11 / V12 |
+| --- | --- | --- | --- | --- | --- | --- |
+| screens | 8 | 13 | 4 | 1 | 3 reachable, 4 more shipped | 1 |
+| head light | on / off / strobe | on / auto / off + watch CITY | on / off | **not implemented** / — / — | on / off | on / off, never read back |
+| LED | 0-9 mode | ride LED on/off | — | ring on/off (S, E) | ring on/off | **no tile** |
+| pedal mode | soft / med / hard | hard / med / soft | soft/med/strong **or** 3 percentages | 0-9 (S, E) | comfort / clasic, **unreachable page** | **no tile** (`rideComfort` / `rideSport` exist) |
+| roll angle | low / med / high | — | — | — | — | — |
+| calibrate | yes | yes, + manual tilt | — | — | yes, **unreachable page** | **no tile** (`calibration` exists) |
+| wheel speed alarms | mode + tiltback | 3 alarms + tiltback | alert + limit | — | Kingsong page, **unreachable and broken** | **no tile** (`speedLimit` exists) |
+| lock | — | lock / unlock / pass | — | auto lock (S, E) | Kingsong page, **unreachable and broken** | **no tile** (`lock` / `unlock` exist) |
+| volume | 1-9 | via voice mode | commands exist, **no UI** | — | 0-100 | **no tile** (`setVolume` exists; V2 even decodes it) |
+| idle power off | read only | set, 60 s - 4 h, + off now | — | — | hold OFF tile to power down now | — |
+| on connect / disconnect | light, LED, beep | light, LED, lift, voice, unlock once / auto off, auto lock | beep only | — | auto light, auto off | light forced off on disconnect, **no tile** (V11, V12 only) |
+| horn (side button) | flag only, **no command** | yes | yes | **not implemented** | yes, sound 1-22 | yes, sound 1-30 |
+| TPMS | yes | yes | yes | yes (Z only) | yes, **hold repaint is broken** | yes |
+| watch alerts | yes | yes | yes | yes (Z, S; **broken on E**) | yes, haptics only | yes, haptics only |
