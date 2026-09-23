@@ -337,7 +337,13 @@ function stopLogging(reason) {
   logging = false
   if (stopTimer) { clearTimeout(stopTimer); stopTimer = 0 }
 
+  // the summary the Info field shows, written into the file so nobody has to copy it by hand
+  const perSecond = value => seconds > 0 ? (value / seconds).toFixed(1) : '0'
   comment(`stopped  : ${reason} - ${seconds.toFixed(2)} s, ${loggedFrames} frames, ${loggedBytes} bytes`)
+  comment(`rate     : ${perSecond(loggedFrames)} frames/s, ${perSecond(loggedBytes)} bytes/s`)
+  comment(`average  : ${loggedFrames ? (loggedBytes / loggedFrames).toFixed(1) : 0} bytes/frame`)
+  comment(`session  : ${frames} frames, ${bytes} bytes since connect`)
+  comment(`browser  : ${navigator.userAgent}`)
   comment('')
   flush()
 
