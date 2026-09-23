@@ -185,14 +185,15 @@
 	{ "id": "clock",
 		"name": "Clock face",
 		"icon": "../../P8-testing/clock/icon.png",
-		"version":"1.94.2",
+		"version":"1.94.3",
 		"description": "clock face",
 		"tags": "apps",
 		"type":"clock",
 	    "needsFeatures":["V1"],
 		"storage": [
 			{"name":"clock","url":"../../P8-testing/clock/clock.js"},
-			{"name":"clockOptions","url":"../../P8-testing/clock/clockOptions.js"}
+			{"name":"clockOptions","url":"../../P8-testing/clock/clockOptions.js"},
+			{"name":"clockDebug","url":"../../P8-testing/clock/clockDebug.js"}
 		]
 	},
 	{ "id": "settings",

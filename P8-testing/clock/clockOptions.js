@@ -408,6 +408,19 @@ touchHandler[0]=function(e,x,y){
 			return; 
 		}break;
 	case 12: //hold event
+		//hold on MAIN OPTIONS opens the debug screen. the page before this one is kept, so
+		//a swipe here still goes back to it after the debug screen has closed.
+		if (!face[0].set && 160 <= y) {
+			buzzer.nav([30,50,30]);
+			//the file comes with the clock app, an older install does not have it
+			if (!require("Storage").read("clockDebug")) {
+				face[0].ntfy("DEBUG SCREEN","NOT INSTALLED",22,1,13,2000);
+				return;
+			}
+			face.dbgBack=[face.appPrev,face.pagePrev];
+			face.go("clockDebug",0);
+			return;
+		}
 		buzzer.nav(40);
 		this.timeout();
 		break;
