@@ -431,7 +431,7 @@ euc.conn = function(mac) {
 	}
 	//connect
 	euc.dash.trip.pwm = 0;
-	NRF.connect(mac, { minInterval: 7.5, maxInterval: 15 })
+	NRF.connect(mac, euc.link())
 		.then(function(g) {
 			euc.gatt=g;
 			return g.getPrimaryService(0xffe0);

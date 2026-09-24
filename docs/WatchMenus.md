@@ -194,7 +194,7 @@ Each tile opens a full-screen editor:
 ```
    page 0                                   page 1
    ┌────────┬────────┬────────┐             ┌────────┬────────┬────────┐
-   │KPH/MPH │  C/F   │ (dead) │             │ FULL   │ AMP N/R│ PWM H/S│
+   │KPH/MPH │  C/F   │  LINK  │             │ FULL   │ AMP N/R│ PWM H/S│
    ├────────┼────────┼────────┤             ├────────┼────────┼────────┤
    │SPEED X │ DIST X │ RETRY  │             │ EMPTY  │ PACK   │ SPIN   │
    └────────┴────────┴────────┘             └────────┴────────┴────────┘
@@ -202,6 +202,12 @@ Each tile opens a full-screen editor:
 
 `PWM H/S` (hardware vs watch-estimated PWM) and `SPIN` (free-spin speed at a full pack,
 20-250) are **Begode only** — both refuse on any other maker.
+
+`LINK` is the BLE connection interval the watch asks of this wheel, saved per garage slot
+in `opt.ci`. Tap steps 7.5 → 15 → 30 → 50 → 7.5; the number is the shortest interval in
+ms, the longest is twice that. 7.5 (7.5-15 ms) is what every driver asked for before it
+was a setting. `euc.link()` in `euc.js` turns it into the `NRF.connect` options, and it
+takes effect on the next connection.
 
 ### 4.5 `dashOff` — the disconnected dash, and `tpmsFace` — the TPMS app
 

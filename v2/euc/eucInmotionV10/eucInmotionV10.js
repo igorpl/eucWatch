@@ -330,7 +330,7 @@ euc.conn=function(mac){
 		return euc.gatt.disconnect();
 	}
 	if (euc.tout.reconnect) {clearTimeout(euc.tout.reconnect); euc.tout.reconnect=0;}
-	NRF.connect(mac,{minInterval:7.5, maxInterval:15})
+	NRF.connect(mac,euc.link())
 		.then(function(g) {
 			euc.gatt=g;
 			return euc.gatt.getPrimaryService(0xffe5);

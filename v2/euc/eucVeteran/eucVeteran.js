@@ -220,7 +220,7 @@ euc.conn=function(mac){
 	euc.isProxy=0;
 	euc.pac=[];
 	//connect
-	NRF.connect(mac,{minInterval:7.5, maxInterval:15})
+	NRF.connect(mac,euc.link())
 	.then(function(g) {
 		euc.gatt=g;
 	   return g.getPrimaryService(0xffe0);

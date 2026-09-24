@@ -1,3 +1,5 @@
+1.94.5: debug screen LINK row shows the interval asked on this connection next to the slot setting
+1.94.4: debug screen shows bytes per chunk, chunks with no frame bytes, link drops and the LINK interval
 1.94.3: debug screen, hold MAIN OPTIONS: ble chunk rate, handler time, timer lag, memory, flags
 1.80: rework
 1.02: fix shutdown drain

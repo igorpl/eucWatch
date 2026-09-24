@@ -41,7 +41,7 @@ if ( euc.gatt&&euc.gatt.connected ) {
 	euc.gatt.disconnect();return;
 }
 //connect
-NRF.connect(mac,{minInterval:7.5, maxInterval:15})
+NRF.connect(mac,euc.link())
 .then(function(g) {
 	euc.gatt=g;
 	return g.getPrimaryService(0xffe0);

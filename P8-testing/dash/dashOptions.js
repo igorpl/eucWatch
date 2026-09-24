@@ -30,7 +30,7 @@ face[0] = {
 		//if (makr) {
 			//if (makr=="Begode"){
 		//this.btn(1,"EMPTY",15,200,10,1,0,160,0,239,75,euc.dash.opt.bat.low/100,30,200,35); //3
-		this.btn(1,"",15,200,10,1,0,160,0,239,75); //3
+		this.link(); //3
 		this.btn(1,"SPEED X",15,40,90,1,0,0,80,75,155,euc.dash.opt.unit.fact.spd,30,40,120); //4
 		this.btn(1,"DIST X",15,120,90,1,0,80,80,155,155,euc.dash.opt.unit.fact.dist,30,120,120); //5
 		this.btn(1,"RETRY",15,200,90,1,0,160,80,239,155,ew.def.dash.rtr,30,200,120); //6
@@ -43,6 +43,11 @@ face[0] = {
 		  t.tid=-1;
 		  t.show();
         },1000,this);
+	},
+	//connection interval the wheel is asked for, per slot, read by euc.link() on connect.
+	//the number is the shortest interval in ms, the longest is twice that.
+	link: function(){
+		this.btn(1,"LINK",15,200,10,4,0,160,0,239,75,euc.dash.opt.ci||7.5,30,200,35);
 	},
     btn: function(bt,txt1,size1,x1,y1,clr1,clr0,rx1,ry1,rx2,ry2,txt2,size2,x2,y2){
 			this.g.setColor(0,(bt)?clr1:clr0);
@@ -232,7 +237,12 @@ touchHandler[0]=function(e,x,y){
 				face[0].btn(1,"o",20,100,20,4,0,80,0,155,75,(ew.def.dash.farn)?"F":"C",30,120,25);
 				face[0].ntfy("TEMPERATURE IN",(ew.def.dash.farn)?"FAHRENHEIT":"CELSIUS",30,1,4,1500);
 			}else if (155 <= x && y < 75) { //3
-				buzzer.nav(40);
+				//7.5 is what every wheel was asked for before this was a setting
+				buzzer.nav([30,50,30]);
+				let l=[7.5,15,30,50];
+				euc.dash.opt.ci=l[(l.indexOf(euc.dash.opt.ci||7.5)+1)%l.length];
+				face[0].link();
+				face[0].ntfy("LINK, ON RECONNECT",euc.dash.opt.ci+"-"+euc.dash.opt.ci*2+" MS",30,1,4,2000);
 			}else if (x<75 && 75 <y && y < 155) { //4
 				buzzer.nav([30,50,30]);
 				face[0].set="spdF";
@@ -352,7 +362,7 @@ touchHandler[0]=function(e,x,y){
 			face[0].page=0;
 			face[0].btn(1,(ew.def.dash.mph)?"MPH":"KPH",30,40,25,4,0,0,0,75,75);//1
 			face[0].btn(1,"o",20,100,20,4,0,80,0,155,75,(ew.def.dash.farn)?"F":"C",30,120,25);//2
-			face[0].btn(1,"",15,200,10,1,0,160,0,239,75); //3
+			face[0].link(); //3
 			//face[0].btn(1,"EMPTY",15,200,10,1,0,160,0,239,75,euc.dash.opt.bat.low/100,30,200,35); //3
 			face[0].btn(1,"SPEED X",15,40,90,1,0,0,80,75,155,euc.dash.opt.unit.fact.spd,30,40,120); //4
 			face[0].btn(1,"DIST X",15,120,90,1,0,80,80,155,155,euc.dash.opt.unit.fact.dist,30,120,120); //5

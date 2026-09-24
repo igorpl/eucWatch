@@ -478,7 +478,7 @@ euc.conn=function(mac){
   euc.dash.trip.startStrip = 0;
   euc.temp.keepAlive.state = 0;
   if (euc.tout.reconnect) {clearTimeout(euc.tout.reconnect); euc.tout.reconnect=0;}
-  NRF.connect(mac,{minInterval:7.5, maxInterval:15})
+  NRF.connect(mac,euc.link())
     .then(function(g) {
       euc.gatt=g;
       return g.getPrimaryService("6e400001-b5a3-f393-e0a9-e50e24dcca9e");

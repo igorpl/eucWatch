@@ -171,24 +171,14 @@ euc.temp.extd= function(event) {
 	}
 };
 //frame assembly scratch. one 24 byte buffer and one DataView over it for the whole
-//session: the notification handler runs for every 20 byte chunk the wheel sends, and a
-//smart bms wheel sends several times what a stock one does - frame 1 once per battery
-//group and the cell blocks in frames 2, 3, 5 and 6 on top of the 0/4/7 the dash reads.
-//The old handler allocated on every one of those chunks and the garbage collector, which
-//stops the watch while it sweeps, is what made the ui crawl on an Xway and not on the
-//older wheels. Nothing below allocates per chunk at all.
+//session, nothing below allocates per chunk. A smart bms wheel sends frame 1 once per
+//battery group and the cell blocks in frames 2, 3, 5 and 6 on top of the 0/4/7 the dash
+//reads, all through this handler.
 euc.temp.buf=new Uint8Array(24);
 euc.temp.dv=new DataView(euc.temp.buf.buffer);
-euc.temp.len=0;	//bytes held, 25 = this frame overran 24 and is void
+euc.temp.len=0;	//bytes of the frame being assembled, 1 = a 55 seen, waiting for the AA
 euc.temp.cnt=0;	//chunks seen, for euc.dbg 2
-euc.temp.add=function(part,from,to){
-	let l=euc.temp.len;
-	if (24<l) return;
-	if (24<l+to-from) { euc.temp.len=25; return; }
-	let b=euc.temp.buf;
-	while (from<to) b[l++]=part[from++];
-	euc.temp.len=l;
-};
+euc.temp.nm=0;	//chunks that carried no frame bytes, read and zeroed by the debug screen
 euc.temp.main=function(event){
 	let part=event.target.value.buffer;
 	if (ew.is.bt==5) 	euc.proxy.w(part);
@@ -197,49 +187,60 @@ euc.temp.main=function(event){
 	//the chunk rate the wheel is really producing.
 	if (euc.dbg==2) euc.temp.cnt++;
 	else if (euc.dbg)  console.log("input",part);
-	//gather packet. the buffer is indexable as it arrives, the way eucKingsong and
-	//eucVeteran already read theirs, so the markers are found in place. The old scan
-	//copied the chunk into a javascript array with JSON.parse(JSON.stringify(...)) and
-	//then ran two findIndex passes with an arrow function per byte over it. Espruino
-	//arrays are linked lists, so every arr[idx+3] walked the list from the head.
-	let n=part.length, startP=-1, endP=-1;
+	//frames are assembled a byte at a time: 55 AA, then bytes until there are 24, and the
+	//last four have to be 5A. The scan this replaces looked for the whole start and end
+	//markers inside one chunk. That holds while every chunk is 20 bytes, as a phone gets
+	//them, since a 24 byte frame then puts a marker in each, but a module that sends
+	//smaller chunks splits the markers across them and nothing was decoded at all, and a
+	//chunk with no marker was taken for a banner and dropped. Byte by byte a frame can be
+	//cut anywhere, and it is still one pass over the chunk as the scan was.
+	let b=euc.temp.buf, l=euc.temp.len, n=part.length, inF=(2<=l);
 	for (let i=0;i<n;i++) {
 		let v=part[i];
-		if (v==85) { if (startP<0 && part[i+1]==170) startP=i; }
-		else if (v==90 && endP<0 && part[i+1]==90 && part[i+2]==90 && part[i+3]==90) endP=i;
-		if (0<=startP && 0<=endP) break;
-	}
-	//format packet
-	if (startP==-1 && endP==-1) { // model/firm banner
-		//matched on the trimmed chunk, as WheelLog does. the old test read a word at
-		//offset 0, so a reply with any leading byte was thrown away for the whole ride.
-		let s = E.toString(part).trim();
-		if (s.slice(0,4)=="NAME") { //fetchModel
-			console.log("model fetch responce:",part);
-			euc.dash.info.get.modl = s.slice(5).trim();
-			if (euc.dash.info.get.modl=="Barton") euc.dash.info.get.modl="RecioWheel";
-			//stored whenever it differs, as eucInmotionV2 does. the old test only wrote into
-			//an empty slot, so a slot kept the first model it ever saw and a wheel swapped
-			//into it still showed the previous one's name in the garage. comparing rather
-			//than always writing keeps the retries, which can land more than one banner per
-			//connect, from rewriting dash.json in flash each time.
-			let sl="slot"+ew.do.fileRead("dash","slot")+"Model";
-			if (ew.do.fileRead("dash",sl)!=euc.dash.info.get.modl)
-				ew.do.fileWrite("dash",sl,euc.dash.info.get.modl);
-			//no per model table: pack, empty cell and free spin speed are set in dash options
-		} else if (euc.temp.firm(s)) { //fetchFirmware
-			euc.dash.info.get.firm = s.slice(2).trim();
+		if (l<2) {
+			if (v==85) l=1;
+			else if (l==1 && v==170) { b[0]=85; b[1]=170; l=2; inF=1; }
+			else l=0;
+		} else {
+			b[l++]=v;
+			if (l==24) {
+				if (b[20]==90 && b[21]==90 && b[22]==90 && b[23]==90) { euc.temp.type(); l=0; }
+				else {
+					//a byte lost or doubled upstream, so the next frame already started
+					//inside this one. carry on from its 55 AA, as the old scan resynced on
+					//every start marker, rather than lose that frame too.
+					let k=1;
+					while (k<23 && (b[k]!=85 || b[k+1]!=170)) k++;
+					if (k<23) { for (let j=k;j<24;j++) b[j-k]=b[j]; l=24-k; }
+					else l=(b[23]==85)?1:0;
+				}
+			}
 		}
-		return;
 	}
-	if (endP!=-1) {
-		euc.temp.add(part,0,endP+4);
-		if (euc.temp.len==24) euc.temp.type();
-		euc.temp.len=0;
+	euc.temp.len=l;
+	//l==1 is a 55 at the end of the chunk that may start the next frame
+	if (inF || l) return;
+	//a chunk with no frame bytes in it: the model/firm banner, or noise
+	euc.temp.nm++;
+	//matched on the trimmed chunk, as WheelLog does. the old test read a word at
+	//offset 0, so a reply with any leading byte was thrown away for the whole ride.
+	let s = E.toString(part).trim();
+	if (s.slice(0,4)=="NAME") { //fetchModel
+		console.log("model fetch responce:",part);
+		euc.dash.info.get.modl = s.slice(5).trim();
+		if (euc.dash.info.get.modl=="Barton") euc.dash.info.get.modl="RecioWheel";
+		//stored whenever it differs, as eucInmotionV2 does. the old test only wrote into
+		//an empty slot, so a slot kept the first model it ever saw and a wheel swapped
+		//into it still showed the previous one's name in the garage. comparing rather
+		//than always writing keeps the retries, which can land more than one banner per
+		//connect, from rewriting dash.json in flash each time.
+		let sl="slot"+ew.do.fileRead("dash","slot")+"Model";
+		if (ew.do.fileRead("dash",sl)!=euc.dash.info.get.modl)
+			ew.do.fileWrite("dash",sl,euc.dash.info.get.modl);
+		//no per model table: pack, empty cell and free spin speed are set in dash options
+	} else if (euc.temp.firm(s)) { //fetchFirmware
+		euc.dash.info.get.firm = s.slice(2).trim();
 	}
-	//a start marker voids whatever is still pending, which is what replacing euc.temp.last
-	//used to do here.
-	if (startP!=-1) { euc.temp.len=0; euc.temp.add(part,startP,n); }
 };
 
 euc.temp.type=function(){
@@ -458,8 +459,8 @@ euc.conn=function(mac){
 		return;
 	}
 	euc.isProxy=0;
-	//connect
-	NRF.connect(mac,{minInterval:7.5, maxInterval:15})
+	//connect, at the interval set for this slot on DASH OPTIONS
+	NRF.connect(mac,euc.link())
 	.then(function(g) {
 		euc.gatt=g;
 	   return g.getPrimaryService(0xffe0);

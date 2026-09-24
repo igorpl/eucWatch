@@ -13,6 +13,13 @@ global.euc = {
 	},
 	temp: {},
 	updateDash: function(slot) { require('Storage').write('eucSlot' + slot + '.json', euc.dash); },
+	//connection interval every driver asks of the wheel, set per slot on DASH OPTIONS (LINK).
+	//7.5 is 7.5-15ms, the fastest BLE allows and what every driver asked for before this was
+	//a setting. A slower one means fewer radio events for the watch to serve, for a wheel
+	//whose module does not cope with the fast one, at a few ms more delay per reading.
+	//euc.is.ci keeps what was asked on this connection, for the debug screen. it is cleared
+	//when a connection starts, so a driver that never calls this shows as not having asked.
+	link: function() { let c = euc.dash.opt.ci || 7.5; euc.is.ci = c; return { minInterval: c, maxInterval: c * 2 }; },
 	wri: function(err) { if (ew.def.cli) console.log("EUC write, not connected", err); },
 	tgl: function() {
 		face.off();
@@ -70,6 +77,7 @@ global.euc = {
 			}
 			else {
 				this.state = "ON";
+				euc.is.ci = 0;
 				euc.temp = { count: 0, loop: 0, last: 0, rota: 0 };
 				eval(require('Storage').read('euc' + require("Storage").readJSON("dash.json", 1)["slot" + require("Storage").readJSON("dash.json", 1).slot + "Maker"]));
 				if (ew.def.prxy && require('Storage').read('proxy' + euc.dash.info.get.makr)) {

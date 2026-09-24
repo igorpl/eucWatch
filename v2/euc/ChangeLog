@@ -1,3 +1,5 @@
+1.83: euc.is.ci records the interval asked on each connection
+1.82: euc.link(), the connection interval every driver asks for, set per slot on DASH OPTIONS
 1.81: clear the firmware fetch timer with the rest on disconnect
 1.80: rework
 1.10: Better Begode support
