@@ -247,7 +247,7 @@ touchHandler[0] = function(e, x, y) {
     return;
   }
   else if (e == 2) {
-    if (y > 200 && x < 50) {
+    if (!ew.def.noBriSw&&y > 200 && x < 50) {
       if (w.gfx.bri.lv !== 7) { this.bri = w.gfx.bri.lv;
         w.gfx.bri.set(7); }
       else w.gfx.bri.set(this.bri);

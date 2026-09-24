@@ -174,7 +174,7 @@ touchHandler[0]=function(e,x,y){
 		face.go(ew.is.dash[ew.def.dash.face],0);
 		return;	 
 	case 2: //slide up event
-		if ( 200<=y && x<=50) { //toggles full/current brightness on a left down corner swipe up. 
+		if ( !ew.def.noBriSw&&200<=y && x<=50) { //toggles full/current brightness on a left down corner swipe up. 
 			if (w.gfx.bri.lv!==7) {this.bri=w.gfx.bri.lv;w.gfx.bri.set(7);}
 			else w.gfx.bri.set(this.bri);
 			buzzer.nav([30,50,30]);

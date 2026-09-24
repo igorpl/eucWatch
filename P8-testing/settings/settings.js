@@ -151,8 +151,9 @@ face[0] = {
 				this.btn(this.acc, 80, 80, 155, 155, require("heatshrink").decompress(atob("mEwwJC/AAkPwAECgP//AFCg///4FCj4FBCQU/AoPgAoN/4Ef+AFB/wZBDwMB/gCCgUDBwV+h0HDQU/jkP4AsCvg/Dh/8j5JDAokH/k+Igf4Aoc//E8AoRbBvhhEAoUD//wjAnBwIFBEIRaEn/AgIFDJ4QFIKoQdDAoibDgECbfA=")), 95, 94, 11, 4, 11, 2);
 			}
 			//brightness level
-			if (this.g.bri.lv != this.bri) {
+			if (this.g.bri.lv != this.bri || ew.def.noBriSw != this.briSw) {
 				this.bri = this.g.bri.lv;
+				this.briSw = ew.def.noBriSw;
 				this.c = 15;
 				this.g.setColor(0, 1);
 				this.g.clearRect(160, 80, 239, 155); //brightness
@@ -161,6 +162,7 @@ face[0] = {
 				this.g.drawImage(require("heatshrink").decompress(atob("jEXwIHEhAKCAQcEAgMGAQMCuADB+EAgICEgYCBnYFEBwoXCDoUGiEAhw9DAQ4ABA")), 170, 107);
 				this.g.setFont("Vector", 45);
 				this.g.drawString(this.g.bri.lv, 194, 99);
+				if (ew.def.noBriSw) this.g.fillRect(164, 88, 167, 147); //corner swipe up is off
 				this.g.flip();
 			}
 		}
@@ -518,7 +520,7 @@ touchHandler[0] = function(e, x, y) {
 		}
 	}
 	else if (e == 2) {
-		if (y > 160 && x < 50) {
+		if (!ew.def.noBriSw&&y > 160 && x < 50) {
 			if (w.gfx.bri.lv !== 7) { this.bri = w.gfx.bri.lv;
 				w.gfx.bri.set(7); }
 			else w.gfx.bri.set(this.bri);
@@ -657,6 +659,11 @@ touchHandler[0] = function(e, x, y) {
 				face[0].btSetOn = 1;
 			}
 			else buzzer.nav(40);
+		}
+		else if (!face.mode && !face[0].themeSet && 158 < x && x < 239 && 77 < y && y < 159) { //btn6 hold: corner swipe up brightness on/off
+			ew.def.noBriSw = ew.def.noBriSw ? 0 : 1;
+			ew.do.update.settings();
+			buzzer.nav([30, 50, 30]);
 		}
 		else buzzer.nav(40);
 	}

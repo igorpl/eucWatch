@@ -133,7 +133,7 @@ touchHandler[0] = function(e, x, y) {
         face.go("hid", -1);
         return;
     } else if (e == 2) {
-        if (y > 160 && x < 50) {
+        if (!ew.def.noBriSw&&y > 160 && x < 50) {
             if (w.gfx.bri.lv !== 7) {
                 this.bri = w.gfx.bri.lv;
                 w.gfx.bri.set(7);
