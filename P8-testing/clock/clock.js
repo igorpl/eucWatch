@@ -1,3 +1,22 @@
+//color scheme, hold DASH OPTIONS to change: 0 blue, 1 teal, 2 orange
+//recolors the blue palette entries in place, 12bit (P8) or 16bit (P22) palette
+w.gfx.theme=function(n){
+	var g=this,l=[1,2,3,4,5,6,8,10,11,12];
+	if (!g.col0) g.col0=new Uint16Array(g.col);
+	g.col.set(g.col0);
+	g.thm=n;
+	if (!n) return;
+	var b16=g.col0[15]==0xFFFF;
+	for (var k=0;k<l.length;k++){
+		var c=g.col0[l[k]],t;
+		var r=b16?(c>>11)/31:(c>>8)/15, gr=b16?(c>>5&63)/63:(c>>4&15)/15, b=b16?(c&31)/31:(c&15)/15;
+		if (n==1) gr=b=(gr+b)/2; //teal: green and blue share the blue, grays stay gray
+		else {t=r;r=b;gr=(gr+b)/2;b=t;} //orange: blue to red, half to green
+		g.col[l[k]]=b16?(Math.round(r*31)<<11)|(Math.round(gr*63)<<5)|Math.round(b*31):(Math.round(r*15)<<8)|(Math.round(gr*15)<<4)|Math.round(b*15);
+	}
+	if (n==1) g.col[11]=g.col0[15]; //teal: the cyan text would be lost on teal tiles, make it white
+};
+if (w.gfx.thm!==(ew.def.theme|0)) w.gfx.theme(ew.def.theme|0);
 //main
 face[0] = {
 	offms: (ew.def.off[face.appCurr])?ew.def.off[face.appCurr]:10000,

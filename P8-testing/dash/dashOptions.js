@@ -390,6 +390,16 @@ touchHandler[0]=function(e,x,y){
 		}
 		return;
 	case 12: //hold event
+		//hold on DASH OPTIONS: next color scheme. w.gfx.theme comes with the clock app
+		if (!face[0].set && 160 <= y && w.gfx.theme) {
+			ew.def.theme=((ew.def.theme|0)+1)%3;
+			w.gfx.theme(ew.def.theme);
+			ew.do.update.settings();
+			buzzer.nav([30,50,30]);
+			face[0].init(); //tiles already drawn keep the old colors until redrawn
+			face[0].ntfy("COLOR SCHEME",["BLUE","TEAL","ORANGE"][ew.def.theme],40,1,4,1500);
+			return;
+		}
 		buzzer.nav(40);
 		//yhis.timeout();
 		break;

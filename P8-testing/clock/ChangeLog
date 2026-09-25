@@ -1,3 +1,4 @@
+1.94.9: three color schemes, blue, teal and orange, hold DASH OPTIONS to switch
 1.94.6: corner swipe up brightness toggle can be turned off, hold the brightness tile in settings
 1.94.5: debug screen LINK row shows the interval asked on this connection next to the slot setting
 1.94.4: debug screen shows bytes per chunk, chunks with no frame bytes, link drops and the LINK interval
